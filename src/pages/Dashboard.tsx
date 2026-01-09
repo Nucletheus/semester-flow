@@ -1,24 +1,16 @@
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, ArrowRight } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Header } from "@/components/Header";
 import { WorkloadChart } from "@/components/WorkloadChart";
-import { DeadlineList } from "@/components/DeadlineList";
 import { AssignmentForm } from "@/components/AssignmentForm";
 import { SemesterSettings } from "@/components/SemesterSettings";
 import { useSemesters } from "@/hooks/useSemesters";
 import { useAssignments, Assignment } from "@/hooks/useAssignments";
 import { Badge } from "@/components/ui/badge";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { format, parseISO, isPast, isToday } from "date-fns";
 
 export default function Dashboard() {
   const { activeSemester, isLoading: semestersLoading } = useSemesters();
@@ -28,28 +20,21 @@ export default function Dashboard() {
 
   const [showAssignmentForm, setShowAssignmentForm] = useState(false);
   const [showSemesterSettings, setShowSemesterSettings] = useState(false);
-  const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const handleAddAssignment = (values: Omit<Assignment, "id" | "user_id" | "created_at" | "updated_at">) => {
-    if (editingAssignment) {
-      updateAssignment.mutate({ id: editingAssignment.id, ...values });
-    } else {
-      createAssignment.mutate(values);
-    }
-    setEditingAssignment(null);
+    createAssignment.mutate(values);
   };
 
-  const handleEditAssignment = (assignment: Assignment) => {
-    setEditingAssignment(assignment);
-    setShowAssignmentForm(true);
-  };
+  // Get next 5 upcoming assignments
+  const upcomingAssignments = assignments
+    .filter((a) => !isPast(parseISO(a.due_date)) || isToday(parseISO(a.due_date)))
+    .slice(0, 5);
 
-  const handleDeleteAssignment = () => {
-    if (deleteId) {
-      deleteAssignment.mutate(deleteId);
-      setDeleteId(null);
-    }
+  const typeIcons: Record<string, string> = {
+    Quiz: "📝",
+    Exam: "📚",
+    Lab: "🔬",
+    Essay: "✍️",
   };
 
   return (
@@ -99,20 +84,56 @@ export default function Dashboard() {
             </Button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-            {/* Chart - Takes more space */}
-            <div className="lg:col-span-3">
-              <WorkloadChart assignments={assignments} semester={activeSemester} />
-            </div>
+          <div className="space-y-6">
+            {/* Chart - Full width */}
+            <WorkloadChart assignments={assignments} semester={activeSemester} />
 
-            {/* Deadline List */}
-            <div className="lg:col-span-2">
-              <DeadlineList
-                assignments={assignments}
-                onEdit={handleEditAssignment}
-                onDelete={setDeleteId}
-              />
-            </div>
+            {/* Quick Preview of Upcoming Deadlines */}
+            <Card className="shadow-soft">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg font-semibold">Upcoming Deadlines</CardTitle>
+                  <Button variant="ghost" size="sm" asChild>
+                    <Link to="/deadlines" className="gap-2">
+                      View All
+                      <ArrowRight className="w-4 h-4" />
+                    </Link>
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {upcomingAssignments.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No upcoming deadlines. Add your first assignment!
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {upcomingAssignments.map((assignment) => (
+                      <div
+                        key={assignment.id}
+                        className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="w-1 h-8 rounded-full"
+                            style={{ backgroundColor: assignment.color }}
+                          />
+                          <div>
+                            <p className="text-sm font-medium">
+                              {typeIcons[assignment.type]} {assignment.assignment_name}
+                            </p>
+                            <p className="text-xs text-muted-foreground">{assignment.class_name}</p>
+                          </div>
+                        </div>
+                        <span className="text-sm text-muted-foreground">
+                          {format(parseISO(assignment.due_date), "MMM d")}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         )}
       </main>
@@ -121,12 +142,8 @@ export default function Dashboard() {
       {activeSemester && (
         <AssignmentForm
           open={showAssignmentForm}
-          onOpenChange={(open) => {
-            setShowAssignmentForm(open);
-            if (!open) setEditingAssignment(null);
-          }}
+          onOpenChange={setShowAssignmentForm}
           semesterId={activeSemester.id}
-          assignment={editingAssignment}
           onSubmit={handleAddAssignment}
         />
       )}
@@ -135,26 +152,6 @@ export default function Dashboard() {
         open={showSemesterSettings}
         onOpenChange={setShowSemesterSettings}
       />
-
-      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Assignment</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this assignment? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteAssignment}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
