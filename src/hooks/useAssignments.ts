@@ -10,6 +10,7 @@ export interface Assignment {
   class_name: string;
   assignment_name: string;
   type: "Quiz" | "Exam" | "Lab" | "Essay";
+  status?: "not started" | "in progress" | "completed";
   due_date: string;
   color: string;
   created_at: string;
@@ -29,7 +30,8 @@ export function useAssignments(semesterId?: string) {
         .from("assignments")
         .select("*")
         .eq("semester_id", semesterId)
-        .order("due_date", { ascending: true });
+        .eq("semester_id", semesterId)
+        .order("created_at", { ascending: true });
       if (error) throw error;
       return data as Assignment[];
     },
@@ -50,6 +52,26 @@ export function useAssignments(semesterId?: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["assignments"] });
       toast({ title: "Assignment added", description: "Your deadline has been saved." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const createAssignments = useMutation({
+    mutationFn: async (assignments: Omit<Assignment, "id" | "user_id" | "created_at" | "updated_at">[]) => {
+      if (!user) throw new Error("Not authenticated");
+      const assignmentsWithUser = assignments.map(a => ({ ...a, user_id: user.id }));
+      const { data, error } = await supabase
+        .from("assignments")
+        .insert(assignmentsWithUser)
+        .select();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["assignments"] });
+      toast({ title: "Assignments added", description: `Successfully created ${data?.length} deadlines.` });
     },
     onError: (error: any) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -94,6 +116,7 @@ export function useAssignments(semesterId?: string) {
     assignments,
     isLoading,
     createAssignment,
+    createAssignments,
     updateAssignment,
     deleteAssignment,
   };

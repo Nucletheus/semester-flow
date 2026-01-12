@@ -1,16 +1,87 @@
 import * as React from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { DayPicker } from "react-day-picker";
+import { DayPicker, useNavigation, CaptionLabelProps } from "react-day-picker";
+import { format, setMonth, setYear } from "date-fns";
+import { useState, useRef, useEffect } from "react";
 
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 export type CalendarProps = React.ComponentProps<typeof DayPicker>;
+
+function YearPicker({ displayMonth }: CaptionLabelProps) {
+  const { goToMonth } = useNavigation();
+  const [open, setOpen] = useState(false);
+  const currentYear = displayMonth.getFullYear();
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Generate years: Current Year - 10 to + 10
+  const years = React.useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const startYear = currentYear - 10;
+    const endYear = currentYear + 10;
+    return Array.from({ length: endYear - startYear + 1 }, (_, i) => startYear + i);
+  }, []);
+
+  useEffect(() => {
+    if (open && scrollRef.current) {
+      const selectedYearEl = scrollRef.current.querySelector('[data-selected="true"]');
+      if (selectedYearEl) {
+        // Use timeout to ensure layout is stable in the popover portal
+        setTimeout(() => {
+          selectedYearEl.scrollIntoView({ block: "center" });
+        }, 0);
+      }
+    }
+  }, [open]);
+
+  return (
+    <div className="flex items-center gap-1 text-sm font-medium relative group">
+      <span>{format(displayMonth, "MMMM")}</span>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <span
+            className="cursor-pointer hover:bg-accent rounded px-1 transition-colors"
+          >
+            {currentYear}
+          </span>
+        </PopoverTrigger>
+        <PopoverContent className="w-[120px] p-0 h-[240px] z-[60]" align="center">
+          <div className="h-full overflow-y-auto overflow-x-hidden py-2" ref={scrollRef}>
+            {years.map((year) => (
+              <div
+                key={year}
+                data-selected={year === currentYear}
+                onClick={() => {
+                  const newMonth = setYear(displayMonth, year);
+                  goToMonth && goToMonth(newMonth);
+                  setOpen(false);
+                }}
+                className={cn(
+                  "px-4 py-1.5 text-center cursor-pointer text-sm hover:bg-accent hover:text-accent-foreground transition-colors",
+                  year === currentYear && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground font-semibold"
+                )}
+              >
+                {year}
+              </div>
+            ))}
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
 
 function Calendar({ className, classNames, showOutsideDays = true, ...props }: CalendarProps) {
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
+      fixedWeeks
       className={cn("p-3", className)}
       classNames={{
         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
@@ -44,6 +115,7 @@ function Calendar({ className, classNames, showOutsideDays = true, ...props }: C
       components={{
         IconLeft: ({ ..._props }) => <ChevronLeft className="h-4 w-4" />,
         IconRight: ({ ..._props }) => <ChevronRight className="h-4 w-4" />,
+        CaptionLabel: YearPicker,
       }}
       {...props}
     />

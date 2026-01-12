@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { z } from "zod";
@@ -23,34 +23,28 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Assignment } from "@/hooks/useAssignments";
+import { ClassPicker, ClassOption } from "./ClassPicker";
 
-const CLASS_COLORS = [
-  { name: "Sage", value: "#5fa37c" },
-  { name: "Coral", value: "#e88a6a" },
-  { name: "Sky", value: "#5ba3d9" },
-  { name: "Lavender", value: "#a78bdb" },
-  { name: "Amber", value: "#d9a33c" },
-  { name: "Rose", value: "#db7093" },
-  { name: "Teal", value: "#3db39e" },
-  { name: "Indigo", value: "#6366f1" },
-];
+// Keep color picker for when creating a class or overriding?
+// ClassPicker handles color for new classes. But maybe we still want to allow overriding?
+// User said: "Making class dropdown ... that way there are no duplicate classes".
+// If I allow changing color here, does it update all classes? No, assignments have colors, logic is loose.
+// But `ClassPicker` logic is: if new, assign random color.
+// I will keep Color picker but maybe hide it if an existing class is selected? Or just let user override.
+// Actually, standardizing means we should probably respect the class color.
+// But `Assignment` table has `color` column on each row.
+// I'll keep the color picker for flexibility but auto-update it when class changes.
+
+const DEFAULT_COLOR = "#5fa37c";
 
 const formSchema = z.object({
   class_name: z.string().min(1, "Class name is required").max(50),
   assignment_name: z.string().min(1, "Assignment name is required").max(100),
-  type: z.enum(["Quiz", "Exam", "Lab", "Essay"]),
   due_date: z.date({ required_error: "Due date is required" }),
   color: z.string(),
 });
@@ -63,6 +57,7 @@ interface AssignmentFormProps {
   semesterId: string;
   assignment?: Assignment | null;
   onSubmit: (values: Omit<Assignment, "id" | "user_id" | "created_at" | "updated_at">) => void;
+  classOptions: ClassOption[];
 }
 
 export function AssignmentForm({
@@ -71,14 +66,14 @@ export function AssignmentForm({
   semesterId,
   assignment,
   onSubmit,
+  classOptions,
 }: AssignmentFormProps) {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       class_name: "",
       assignment_name: "",
-      type: "Quiz",
-      color: CLASS_COLORS[0].value,
+      color: DEFAULT_COLOR,
     },
   });
 
@@ -87,7 +82,6 @@ export function AssignmentForm({
       form.reset({
         class_name: assignment.class_name,
         assignment_name: assignment.assignment_name,
-        type: assignment.type,
         due_date: new Date(assignment.due_date),
         color: assignment.color,
       });
@@ -95,8 +89,7 @@ export function AssignmentForm({
       form.reset({
         class_name: "",
         assignment_name: "",
-        type: "Quiz",
-        color: CLASS_COLORS[0].value,
+        color: DEFAULT_COLOR,
       });
     }
   }, [assignment, form, open]);
@@ -106,7 +99,7 @@ export function AssignmentForm({
       semester_id: semesterId,
       class_name: values.class_name,
       assignment_name: values.assignment_name,
-      type: values.type,
+      type: "Quiz", // Default hidden type
       due_date: format(values.due_date, "yyyy-MM-dd"),
       color: values.color,
     });
@@ -125,10 +118,19 @@ export function AssignmentForm({
               control={form.control}
               name="class_name"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className="flex flex-col">
                   <FormLabel>Class Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., BIOL 1011" {...field} />
+                    <ClassPicker
+                      value={field.value}
+                      onChange={(val, color) => {
+                        field.onChange(val);
+                        if (color) {
+                          form.setValue("color", color);
+                        }
+                      }}
+                      options={classOptions}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -149,36 +151,12 @@ export function AssignmentForm({
               )}
             />
 
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="type"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Type</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="Quiz">📝 Quiz</SelectItem>
-                        <SelectItem value="Exam">📚 Exam</SelectItem>
-                        <SelectItem value="Lab">🔬 Lab</SelectItem>
-                        <SelectItem value="Essay">✍️ Essay</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
+            <div className="grid grid-cols-1 gap-4">
               <FormField
                 control={form.control}
                 name="due_date"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="flex flex-col">
                     <FormLabel>Due Date</FormLabel>
                     <Popover>
                       <PopoverTrigger asChild>
@@ -211,33 +189,7 @@ export function AssignmentForm({
               />
             </div>
 
-            <FormField
-              control={form.control}
-              name="color"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Class Color</FormLabel>
-                  <div className="flex flex-wrap gap-2">
-                    {CLASS_COLORS.map((color) => (
-                      <button
-                        key={color.value}
-                        type="button"
-                        onClick={() => field.onChange(color.value)}
-                        className={cn(
-                          "w-8 h-8 rounded-lg transition-all",
-                          field.value === color.value
-                            ? "ring-2 ring-offset-2 ring-primary scale-110"
-                            : "hover:scale-105"
-                        )}
-                        style={{ backgroundColor: color.value }}
-                        title={color.name}
-                      />
-                    ))}
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+
 
             <div className="flex justify-end gap-3 pt-4">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
