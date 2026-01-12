@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { BookOpen, Loader2 } from "lucide-react";
+import { BookOpen, Loader2, ArrowLeft } from "lucide-react";
 import { z } from "zod";
 
 const authSchema = z.object({
@@ -14,12 +14,15 @@ const authSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
+type AuthView = "login" | "signup" | "recovery";
+
 export default function Auth() {
-  const [isLogin, setIsLogin] = useState(true);
+  const [view, setView] = useState<AuthView>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [errors, setErrors] = useState<{ email?: string; password?: string; confirmPassword?: string }>({});
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -39,9 +42,18 @@ export default function Auth() {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const validateForm = () => {
     setErrors({});
+
+    // Recovery only needs email
+    if (view === "recovery") {
+      const emailValidation = z.string().email().safeParse(email);
+      if (!emailValidation.success) {
+        setErrors({ email: "Please enter a valid email address" });
+        return false;
+      }
+      return true;
+    }
 
     const validation = authSchema.safeParse({ email, password });
     if (!validation.success) {
@@ -51,24 +63,49 @@ export default function Auth() {
         if (err.path[0] === "password") fieldErrors.password = err.message;
       });
       setErrors(fieldErrors);
-      return;
+      return false;
     }
+
+    if (view === "signup" && password !== confirmPassword) {
+      setErrors({ res: "Passwords do not match", confirmPassword: "Passwords do not match" });
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateForm()) return;
 
     setLoading(true);
 
     try {
-      if (isLogin) {
+      if (view === "login") {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         toast({ title: "Welcome back!", description: "You've successfully signed in." });
-      } else {
+      } else if (view === "signup") {
         const { error } = await supabase.auth.signUp({
           email,
           password,
           options: { emailRedirectTo: `${window.location.origin}/` },
         });
         if (error) throw error;
-        toast({ title: "Account created!", description: "You can now start tracking your workload." });
+        toast({
+          title: "Account created!",
+          description: "Please check your email to confirm your account before signing in."
+        });
+      } else if (view === "recovery") {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/update-password`,
+        });
+        if (error) throw error;
+        toast({
+          title: "Recovery email sent",
+          description: "Check your email for the password reset link.",
+        });
+        setView("login");
       }
     } catch (error: any) {
       let message = error.message;
@@ -83,6 +120,22 @@ export default function Auth() {
     }
   };
 
+  const getTitle = () => {
+    switch (view) {
+      case "login": return "Welcome back";
+      case "signup": return "Create your account";
+      case "recovery": return "Reset Password";
+    }
+  };
+
+  const getDescription = () => {
+    switch (view) {
+      case "login": return "Sign in to track your academic workload";
+      case "signup": return "Start organizing your semester today";
+      case "recovery": return "Enter your email to receive a reset link";
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <Card className="w-full max-w-md animate-slide-up shadow-medium">
@@ -92,12 +145,10 @@ export default function Auth() {
           </div>
           <div>
             <CardTitle className="text-2xl font-semibold">
-              {isLogin ? "Welcome back" : "Create your account"}
+              {getTitle()}
             </CardTitle>
             <CardDescription className="mt-2">
-              {isLogin
-                ? "Sign in to track your academic workload"
-                : "Start organizing your semester today"}
+              {getDescription()}
             </CardDescription>
           </div>
         </CardHeader>
@@ -117,38 +168,82 @@ export default function Auth() {
                 <p className="text-sm text-destructive">{errors.email}</p>
               )}
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className={errors.password ? "border-destructive" : ""}
-              />
-              {errors.password && (
-                <p className="text-sm text-destructive">{errors.password}</p>
-              )}
-            </div>
+
+            {view !== "recovery" && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password">Password</Label>
+                  {view === "login" && (
+                    <button
+                      type="button"
+                      onClick={() => setView("recovery")}
+                      className="text-xs text-muted-foreground hover:text-primary transition-colors"
+                    >
+                      Forgot password?
+                    </button>
+                  )}
+                </div>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className={errors.password ? "border-destructive" : ""}
+                />
+                {errors.password && (
+                  <p className="text-sm text-destructive">{errors.password}</p>
+                )}
+              </div>
+            )}
+
+            {view === "signup" && (
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  placeholder="••••••••"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className={errors.confirmPassword ? "border-destructive" : ""}
+                />
+                {errors.confirmPassword && (
+                  <p className="text-sm text-destructive">{errors.confirmPassword}</p>
+                )}
+              </div>
+            )}
+
             <Button type="submit" className="w-full" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isLogin ? "Sign in" : "Create account"}
+              {view === "login" ? "Sign in" : view === "signup" ? "Create account" : "Send Reset Link"}
             </Button>
           </form>
-          <div className="mt-6 text-center">
-            <button
-              type="button"
-              onClick={() => setIsLogin(!isLogin)}
-              className="text-sm text-muted-foreground hover:text-primary transition-colors"
-            >
-              {isLogin
-                ? "Don't have an account? Sign up"
-                : "Already have an account? Sign in"}
-            </button>
+
+          <div className="mt-6 text-center space-y-2">
+            {view === "recovery" ? (
+              <button
+                type="button"
+                onClick={() => setView("login")}
+                className="text-sm text-muted-foreground hover:text-primary transition-colors flex items-center justify-center gap-2 mx-auto"
+              >
+                <ArrowLeft className="w-4 h-4" /> Back to sign in
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setView(view === "login" ? "signup" : "login")}
+                className="text-sm text-muted-foreground hover:text-primary transition-colors"
+              >
+                {view === "login"
+                  ? "Don't have an account? Sign up"
+                  : "Already have an account? Sign in"}
+              </button>
+            )}
           </div>
         </CardContent>
       </Card>
     </div>
   );
 }
+

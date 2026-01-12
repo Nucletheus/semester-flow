@@ -16,7 +16,7 @@ import { format, parseISO, isPast, isToday } from "date-fns";
 
 export default function Dashboard() {
   const { activeSemester, isLoading: semestersLoading } = useSemesters();
-  const { assignments, createAssignment, createAssignments, updateAssignment, deleteAssignment } = useAssignments(
+  const { assignments, createAssignment, createAssignments, updateAssignment, deleteAssignment, updateClassColor } = useAssignments(
     activeSemester?.id
   );
 
@@ -31,6 +31,7 @@ export default function Dashboard() {
   // Get next 5 upcoming assignments
   const upcomingAssignments = assignments
     .filter((a) => !isPast(parseISO(a.due_date)) || isToday(parseISO(a.due_date)))
+    .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime())
     .slice(0, 5);
 
   const classOptions = useMemo(() => {
@@ -77,7 +78,11 @@ export default function Dashboard() {
         ) : (
           <div className="space-y-6">
             {/* Chart - Full width */}
-            <WorkloadChart assignments={assignments} semester={activeSemester} />
+            <WorkloadChart
+              assignments={assignments}
+              semester={activeSemester}
+              onColorChange={(className, newColor) => updateClassColor.mutate({ className, newColor })}
+            />
 
             {/* Quick Preview of Upcoming Deadlines */}
             <Card className="shadow-soft">

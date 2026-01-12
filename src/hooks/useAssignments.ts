@@ -17,7 +17,9 @@ export interface Assignment {
   updated_at: string;
 }
 
-export function useAssignments(semesterId?: string) {
+
+
+export const useAssignments = (semesterId?: string) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -29,7 +31,6 @@ export function useAssignments(semesterId?: string) {
       const { data, error } = await supabase
         .from("assignments")
         .select("*")
-        .eq("semester_id", semesterId)
         .eq("semester_id", semesterId)
         .order("created_at", { ascending: true });
       if (error) throw error;
@@ -98,6 +99,27 @@ export function useAssignments(semesterId?: string) {
     },
   });
 
+  const updateClassColor = useMutation({
+    mutationFn: async ({ className, newColor }: { className: string; newColor: string }) => {
+      if (!user || !semesterId) throw new Error("Not authenticated");
+      const { data, error } = await supabase
+        .from("assignments")
+        .update({ color: newColor })
+        .eq("semester_id", semesterId)
+        .eq("class_name", className)
+        .select();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["assignments"] });
+      toast({ title: "Class color updated" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
   const deleteAssignment = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("assignments").delete().eq("id", id);
@@ -119,5 +141,7 @@ export function useAssignments(semesterId?: string) {
     createAssignments,
     updateAssignment,
     deleteAssignment,
+    updateClassColor,
+
   };
 }

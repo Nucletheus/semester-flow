@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   AreaChart,
   Area,
@@ -9,15 +9,20 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from "recharts";
-import { format, eachDayOfInterval, parseISO, isSameDay, startOfDay } from "date-fns";
+import { format, eachDayOfInterval, parseISO, isSameDay, startOfDay, addDays, subDays } from "date-fns";
 import { Assignment } from "@/hooks/useAssignments";
 import { Semester } from "@/hooks/useSemesters";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart3, CheckCircle2 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 
 interface WorkloadChartProps {
   assignments: Assignment[];
   semester: Semester | undefined;
+  onColorChange?: (className: string, newColor: string) => void;
 }
 
 interface ChartDataPoint {
@@ -27,21 +32,26 @@ interface ChartDataPoint {
   [className: string]: string | number;
 }
 
-export function WorkloadChart({ assignments, semester }: WorkloadChartProps) {
-  const { chartData, classNames, hasActiveAssignments } = useMemo(() => {
-    if (!semester) return { chartData: [], classNames: [], hasActiveAssignments: false };
+// Small base value ensures lines are always visible even with 0 assignments
+const BASE_VALUE = 0.05;
+
+export function WorkloadChart({ assignments, semester, onColorChange }: WorkloadChartProps) {
+  const { chartData, classNames, hasActiveAssignments, maxStackHeight } = useMemo(() => {
+    if (!semester) return { chartData: [], classNames: [], hasActiveAssignments: false, maxStackHeight: 0 };
 
     // Filter out completed assignments to "flatten the curve"
     const activeAssignments = assignments.filter((a) => a.status !== "completed");
     const hasActiveAssignments = activeAssignments.length > 0;
 
-    const startDate = parseISO(semester.start_date);
-    const endDate = parseISO(semester.end_date);
-    // Expand range slightly to prevent edge cutting
+    // Add buffer to start and end
+    const startDate = subDays(parseISO(semester.start_date), 2);
+    const endDate = addDays(parseISO(semester.end_date), 2);
     const days = eachDayOfInterval({ start: startDate, end: endDate });
 
     const uniqueClasses = [...new Set(assignments.map((a) => a.class_name))].sort();
     const classColorMap = new Map(assignments.map((a) => [a.class_name, a.color]));
+
+    let maxDailyStack = 0;
 
     const data: ChartDataPoint[] = days.map((day) => {
       const point: ChartDataPoint = {
@@ -50,13 +60,23 @@ export function WorkloadChart({ assignments, semester }: WorkloadChartProps) {
         timestamp: startOfDay(day).getTime(),
       };
 
+      let dailyTotal = 0;
+
       uniqueClasses.forEach((className) => {
         // Only count active assignments
         const count = activeAssignments.filter(
           (a) => a.class_name === className && isSameDay(parseISO(a.due_date), day)
         ).length;
-        point[className] = count;
+        // Add base value so the layer is always present
+        // 1 unit per assignment + base value
+        const val = count + BASE_VALUE;
+        point[className] = val;
+        dailyTotal += val;
       });
+
+      if (dailyTotal > maxDailyStack) {
+        maxDailyStack = dailyTotal;
+      }
 
       return point;
     });
@@ -68,6 +88,7 @@ export function WorkloadChart({ assignments, semester }: WorkloadChartProps) {
         color: classColorMap.get(name) || "#6366f1",
       })),
       hasActiveAssignments,
+      maxStackHeight: maxDailyStack,
     };
   }, [assignments, semester]);
 
@@ -84,7 +105,17 @@ export function WorkloadChart({ assignments, semester }: WorkloadChartProps) {
         a.status !== "completed"
     );
 
-    if (assignmentsOnDay.length === 0) return null;
+    // If no real assignments, show a "Quiet Day" tooltip or nothing
+    if (assignmentsOnDay.length === 0) {
+      return (
+        <div className="bg-background/95 backdrop-blur-sm border border-border/50 rounded-lg shadow-xl p-3 animate-in fade-in-0 zoom-in-95 duration-200">
+          <p className="font-medium text-xs text-muted-foreground">
+            {format(parseISO(dateStr), "EEEE, MMMM d")}
+          </p>
+          <p className="font-semibold text-sm text-foreground">No deadlines</p>
+        </div>
+      )
+    }
 
     return (
       <div className="bg-background/95 backdrop-blur-sm border border-border/50 rounded-lg shadow-xl p-3 animate-in fade-in-0 zoom-in-95 duration-200 min-w-[180px]">
@@ -134,12 +165,14 @@ export function WorkloadChart({ assignments, semester }: WorkloadChartProps) {
             Semester Workload
           </CardTitle>
           {hasActiveAssignments && (
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap justify-end">
               {classNames.map(c => (
-                <div key={c.name} className="flex items-center gap-1.5 text-[10px] bg-secondary/50 px-2 py-1 rounded-md border border-border/50">
-                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: c.color }} />
-                  <span className="font-medium opacity-70">{c.name}</span>
-                </div>
+                <ColorPickerPopover
+                  key={c.name}
+                  name={c.name}
+                  currentColor={c.color}
+                  onColorChange={onColorChange}
+                />
               ))}
             </div>
           )}
@@ -171,7 +204,7 @@ export function WorkloadChart({ assignments, semester }: WorkloadChartProps) {
                     {classNames.map(({ name, color }) => (
                       <linearGradient key={name} id={`gradient-${name.replace(/\s+/g, '-')}`} x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor={color} stopOpacity={0.9} />
-                        <stop offset="95%" stopColor={color} stopOpacity={0.5} />
+                        <stop offset="95%" stopColor={color} stopOpacity={0.6} />
                       </linearGradient>
                     ))}
                   </defs>
@@ -189,12 +222,10 @@ export function WorkloadChart({ assignments, semester }: WorkloadChartProps) {
                     minTickGap={30}
                     tickMargin={10}
                   />
+                  {/* Hide Y Axis as values are artificial (base + count) */}
                   <YAxis
-                    domain={[0, 10]}
-                    tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))", fontWeight: 500 }}
-                    tickLine={false}
-                    axisLine={false}
-                    allowDecimals={false}
+                    hide
+                    domain={[0, Math.ceil(maxStackHeight) || 1]}
                   />
                   <Tooltip
                     content={<CustomTooltip />}
@@ -218,12 +249,12 @@ export function WorkloadChart({ assignments, semester }: WorkloadChartProps) {
                   {classNames.map(({ name, color }) => (
                     <Area
                       key={name}
-                      type="monotone"
+                      type="monotone" // Smooth curve
                       dataKey={name}
-                      stackId="1"
+                      stackId="1" // Stack them
                       stroke={color}
+                      strokeWidth={1.5}
                       fill={`url(#gradient-${name.replace(/\s+/g, '-')})`}
-                      strokeWidth={3}
                       animationDuration={1500}
                     />
                   ))}
@@ -234,5 +265,50 @@ export function WorkloadChart({ assignments, semester }: WorkloadChartProps) {
         )}
       </CardContent>
     </Card>
+  );
+}
+
+function ColorPickerPopover({ name, currentColor, onColorChange }: { name: string, currentColor: string, onColorChange?: (name: string, color: string) => void }) {
+  const [tempColor, setTempColor] = useState(currentColor);
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button className="flex items-center gap-1.5 text-[10px] bg-secondary/50 px-2 py-1 rounded-md border border-border/50 hover:bg-secondary/80 transition-colors cursor-pointer ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: currentColor }} />
+          <span className="font-medium opacity-70">{name}</span>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-64">
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>Edit Color for {name}</Label>
+            <div className="flex gap-2">
+              <Input
+                type="color"
+                value={tempColor}
+                className="w-12 h-8 p-1 cursor-pointer"
+                onChange={(e) => setTempColor(e.target.value)}
+              />
+              <Input
+                type="text"
+                value={tempColor}
+                className="flex-1 h-8 uppercase"
+                onChange={(e) => {
+                  setTempColor(e.target.value);
+                }}
+              />
+            </div>
+            <Button
+              size="sm"
+              className="w-full"
+              onClick={() => onColorChange?.(name, tempColor)}
+            >
+              Set Color
+            </Button>
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
