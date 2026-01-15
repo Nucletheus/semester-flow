@@ -30,14 +30,19 @@ interface ClassPickerProps {
     className?: string
 }
 
-const PASTEL_COLORS = [
-    "#FFB3BA", "#FFDFBA", "#FFFFBA", "#BAFFC9", "#BAE1FF",
-    "#E6E6FA", "#FFC0CB", "#DDA0DD", "#B0E0E6", "#F0E68C",
-    "#E0BBE4", "#957DAD", "#D291BC", "#FEC8D8", "#FFDFD3",
-    "#B5EAD7", "#C7CEEA",
+// Theme-aware palette using CSS variables
+const THEME_COLORS = [
+    "hsl(var(--class-sage))",
+    "hsl(var(--class-coral))",
+    "hsl(var(--class-sky))",
+    "hsl(var(--class-lavender))",
+    "hsl(var(--class-amber))",
+    "hsl(var(--class-rose))",
+    "hsl(var(--class-teal))",
+    "hsl(var(--class-indigo))",
 ];
 
-const getRandomColor = () => PASTEL_COLORS[Math.floor(Math.random() * PASTEL_COLORS.length)];
+const getRandomColor = () => THEME_COLORS[Math.floor(Math.random() * THEME_COLORS.length)];
 
 export function ClassPicker({ value, onChange, options, className }: ClassPickerProps) {
     const [open, setOpen] = React.useState(false)
@@ -82,23 +87,23 @@ export function ClassPicker({ value, onChange, options, className }: ClassPicker
                             <span className="truncate">{value}</span>
                         </div>
                     ) : (
-                        "Select or create class..."
+                        "Select or create category..."
                     )}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
             </PopoverTrigger>
             <PopoverContent className="w-[300px] p-0" align="start">
                 <Command>
-                    <CommandInput placeholder="Search class..." onValueChange={setSearchValue} />
+                    <CommandInput placeholder="Search category..." onValueChange={setSearchValue} />
                     <CommandList>
                         <CommandEmpty className="p-2">
-                            <div className="text-sm text-muted-foreground mb-2 px-2">No class found.</div>
+                            <div className="text-sm text-muted-foreground mb-2 px-2">No category found.</div>
                             <Button variant="outline" size="sm" className="w-full justify-start" onClick={handleCreate}>
                                 <Plus className="mr-2 h-4 w-4" />
                                 Create "{searchValue}"
                             </Button>
                         </CommandEmpty>
-                        <CommandGroup heading="Existing Classes">
+                        <CommandGroup heading="Existing Categories">
                             {options.map((option) => (
                                 <CommandItem
                                     key={option.value}

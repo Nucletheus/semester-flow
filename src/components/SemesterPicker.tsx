@@ -31,7 +31,7 @@ export function SemesterPicker() {
     return (
         <Select value={activeSemester?.id} onValueChange={handleValueChange}>
             <SelectTrigger className="w-[180px] h-9 text-sm">
-                <SelectValue placeholder="Select Semester" />
+                <SelectValue placeholder="Select Timeline" />
             </SelectTrigger>
             <SelectContent>
                 {semesters.map((semester) => (

@@ -25,6 +25,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
+import { ThemeSwitcher } from "./ThemeSwitcher";
 
 interface HeaderProps {
   onOpenSemesterSettings: () => void;
@@ -95,6 +96,7 @@ export function Header({ onOpenSemesterSettings }: HeaderProps) {
           </div>
 
           <div className="flex items-center gap-2">
+            <ThemeSwitcher />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="rounded-full ring-2 ring-transparent hover:ring-primary/20 transition-all">
@@ -117,7 +119,7 @@ export function Header({ onOpenSemesterSettings }: HeaderProps) {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={onOpenSemesterSettings}>
                   <Settings className="w-4 h-4 mr-2" />
-                  Semester Settings
+                  Timeline Settings
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => setShowDeleteAlert(true)} className="text-destructive focus:text-destructive">

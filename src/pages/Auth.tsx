@@ -6,8 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { BookOpen, Loader2, ArrowLeft } from "lucide-react";
+import { BookOpen, Loader2, ArrowLeft, UserPlus } from "lucide-react";
 import { z } from "zod";
+import { cn } from "@/lib/utils";
 
 const authSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -89,7 +90,7 @@ export default function Auth() {
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: `${window.location.origin}/` },
+          options: { emailRedirectTo: "https://semesterdeadlines.lovable.app" },
         });
         if (error) throw error;
         toast({
@@ -98,7 +99,7 @@ export default function Auth() {
         });
       } else if (view === "recovery") {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/update-password`,
+          redirectTo: "https://semesterdeadlines.lovable.app/update-password",
         });
         if (error) throw error;
         toast({
@@ -140,8 +141,15 @@ export default function Auth() {
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <Card className="w-full max-w-md animate-slide-up shadow-medium">
         <CardHeader className="text-center space-y-4">
-          <div className="mx-auto w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
-            <BookOpen className="w-6 h-6 text-primary" />
+          <div className={cn(
+            "mx-auto w-12 h-12 rounded-xl flex items-center justify-center transition-colors",
+            view === "signup" ? "bg-secondary/20" : "bg-primary/10"
+          )}>
+            {view === "signup" ? (
+              <UserPlus className="w-6 h-6 text-secondary-foreground" />
+            ) : (
+              <BookOpen className="w-6 h-6 text-primary" />
+            )}
           </div>
           <div>
             <CardTitle className="text-2xl font-semibold">

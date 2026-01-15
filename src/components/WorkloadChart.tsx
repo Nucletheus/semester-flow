@@ -8,16 +8,20 @@ import {
   Tooltip,
   ResponsiveContainer,
   ReferenceLine,
+  ReferenceArea,
 } from "recharts";
-import { format, eachDayOfInterval, parseISO, isSameDay, startOfDay, addDays, subDays } from "date-fns";
+import { format, eachDayOfInterval, parseISO, isSameDay, startOfDay, addDays, subDays, differenceInCalendarDays, isSunday } from "date-fns";
 import { Assignment } from "@/hooks/useAssignments";
 import { Semester } from "@/hooks/useSemesters";
+import { getClassThemeColor } from "@/lib/themeColors";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart3, CheckCircle2 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { useEffect } from "react";
 
 interface WorkloadChartProps {
   assignments: Assignment[];
@@ -36,24 +40,44 @@ interface ChartDataPoint {
 const BASE_VALUE = 0.05;
 
 export function WorkloadChart({ assignments, semester, onColorChange }: WorkloadChartProps) {
-  const { chartData, classNames, hasActiveAssignments, maxStackHeight } = useMemo(() => {
-    if (!semester) return { chartData: [], classNames: [], hasActiveAssignments: false, maxStackHeight: 0 };
+  /* State for Relative Mode (100% Stacked) */
+  const [isRelativeMode, setIsRelativeMode] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("workloadChartRelativeMode");
+      return saved === "true";
+    }
+    return false;
+  });
 
-    // Filter out completed assignments to "flatten the curve"
+  useEffect(() => {
+    localStorage.setItem("workloadChartRelativeMode", String(isRelativeMode));
+  }, [isRelativeMode]);
+
+  const { chartData, classNames, hasActiveAssignments, maxStackHeight, sundays } = useMemo(() => {
+    if (!semester) return { chartData: [], classNames: [], hasActiveAssignments: false, maxStackHeight: 0, sundays: [] };
+
+    // Filter out completed assignments
     const activeAssignments = assignments.filter((a) => a.status !== "completed");
     const hasActiveAssignments = activeAssignments.length > 0;
 
-    // Add buffer to start and end
+    // Add buffer
     const startDate = subDays(parseISO(semester.start_date), 2);
     const endDate = addDays(parseISO(semester.end_date), 2);
     const days = eachDayOfInterval({ start: startDate, end: endDate });
 
     const uniqueClasses = [...new Set(assignments.map((a) => a.class_name))].sort();
-    const classColorMap = new Map(assignments.map((a) => [a.class_name, a.color]));
 
-    let maxDailyStack = 0;
+    // Deterministically assign theme-aware colors based on sorted class names
+    // This overrides stored hex codes so that the Theme system effectively "takes over" appearance.
+    const classColorMap = new Map();
+    uniqueClasses.forEach((name) => {
+      classColorMap.set(name, getClassThemeColor(name, uniqueClasses));
+    });
 
-    const data: ChartDataPoint[] = days.map((day) => {
+    let globalMaxDailyTotal = 0;
+
+    // First Pass: Calculate values and find Max Load
+    const initialData = days.map((day) => {
       const point: ChartDataPoint = {
         date: format(day, "yyyy-MM-dd"),
         displayDate: format(day, "MMM d"),
@@ -63,34 +87,86 @@ export function WorkloadChart({ assignments, semester, onColorChange }: Workload
       let dailyTotal = 0;
 
       uniqueClasses.forEach((className) => {
-        // Only count active assignments
-        const count = activeAssignments.filter(
-          (a) => a.class_name === className && isSameDay(parseISO(a.due_date), day)
-        ).length;
-        // Add base value so the layer is always present
-        // 1 unit per assignment + base value
-        const val = count + BASE_VALUE;
+        const classAssignments = activeAssignments.filter((a) => a.class_name === className);
+        let weight = 0;
+
+        classAssignments.forEach(assignment => {
+          const dueDate = parseISO(assignment.due_date);
+          const daysUntilDue = differenceInCalendarDays(dueDate, day);
+
+          if (daysUntilDue === 0) weight += 1.0;
+          else if (daysUntilDue === 1) weight += 0.75;
+          else if (daysUntilDue === 2) weight += 0.50;
+          else if (daysUntilDue === 3) weight += 0.25;
+          else if (daysUntilDue === 4) weight += 0.1;
+          else if (daysUntilDue === 5) weight += 0.05;
+          else if (daysUntilDue === 6) weight += 0.025;
+          else if (daysUntilDue === 7) weight += 0.01;
+        });
+
+        // Add base value so the layer is always present if there are assignments, 
+        // but we might want the base value to be constant for the area stacked look.
+        // Original code added BASE_VALUE to the count. 
+        // If we want the consistent stream look, we add BASE_VALUE if weight > 0 OR if we just want a baseline for the class existence.
+
+        let val = 0;
+        if (isRelativeMode) {
+          // In relative mode, we only want actual work to show up.
+          // No base value padding, as that distorts the 100% normalization for days with 1 vs 10 assignments.
+          val = weight;
+        } else {
+          // Absolute mode: Keep original behavior for visual consistency
+          val = weight + BASE_VALUE;
+        }
+
         point[className] = val;
         dailyTotal += val;
       });
 
-      if (dailyTotal > maxDailyStack) {
-        maxDailyStack = dailyTotal;
+      if (dailyTotal > globalMaxDailyTotal) {
+        globalMaxDailyTotal = dailyTotal;
+      }
+
+      // Store total for second pass
+      point._dailyTotal = dailyTotal;
+
+      return point;
+    });
+
+    // Second Pass: Add Free Time
+    const finalData = initialData.map(point => {
+      const dailyTotal = point._dailyTotal as number;
+
+      if (isRelativeMode) {
+        // In Relative Mode:
+        // If there is ANY work (dailyTotal > 0), the stackOffset="expand" will normalize it to 100%.
+        // We do NOT want Free Time to take up space.
+        // If there is NO work (dailyTotal == 0), we want Free Time to fill 100%.
+        // So we set free_time = 1 (arbitrary positive), so it becomes the only 100% stack.
+        point["free_time"] = dailyTotal > 0 ? 0 : 1;
+      } else {
+        // In Absolute Mode:
+        // We don't really use free_time, but to be safe/consistent we can leave it 0
+        // OR we can calculate it as gap to max? The user didn't ask for change here.
+        point["free_time"] = 0;
       }
 
       return point;
     });
 
+    const sundays = days.filter(day => isSunday(day));
+
     return {
-      chartData: data,
+      chartData: finalData,
       classNames: uniqueClasses.map((name) => ({
         name,
         color: classColorMap.get(name) || "#6366f1",
       })),
       hasActiveAssignments,
-      maxStackHeight: maxDailyStack,
+      maxStackHeight: globalMaxDailyTotal,
+      sundays,
     };
-  }, [assignments, semester]);
+  }, [assignments, semester, isRelativeMode]);
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (!active || !payload || !payload.length) return null;
@@ -148,7 +224,7 @@ export function WorkloadChart({ assignments, semester, onColorChange }: Workload
       <Card className="shadow-soft border-dashed">
         <CardContent className="flex flex-col items-center justify-center h-64 text-center">
           <BarChart3 className="w-12 h-12 text-muted-foreground/30 mb-4" />
-          <p className="text-muted-foreground font-medium">Create a semester to begin</p>
+          <p className="text-muted-foreground font-medium">Create a timeline to begin</p>
         </CardContent>
       </Card>
     );
@@ -162,20 +238,34 @@ export function WorkloadChart({ assignments, semester, onColorChange }: Workload
             <div className="p-2 bg-primary/10 rounded-lg text-primary">
               <BarChart3 className="w-5 h-5" />
             </div>
-            Semester Workload
+            Workload Overview
           </CardTitle>
-          {hasActiveAssignments && (
-            <div className="flex gap-2 flex-wrap justify-end">
-              {classNames.map(c => (
-                <ColorPickerPopover
-                  key={c.name}
-                  name={c.name}
-                  currentColor={c.color}
-                  onColorChange={onColorChange}
-                />
-              ))}
-            </div>
-          )}
+          <div className="flex items-center gap-4">
+            {hasActiveAssignments && (
+              <div className="flex items-center gap-2">
+                <div className="flex items-center space-x-2">
+                  <Label htmlFor="relative-mode" className="text-xs font-medium text-muted-foreground">Relative</Label>
+                  <Switch
+                    id="relative-mode"
+                    checked={isRelativeMode}
+                    onCheckedChange={setIsRelativeMode}
+                  />
+                </div>
+                <div className="h-4 w-px bg-border/50 mx-2" />
+                <div className="flex gap-2 flex-wrap justify-end">
+                  {classNames.map(c => (
+                    <div
+                      key={c.name}
+                      className="flex items-center gap-1.5 text-[10px] bg-secondary/50 px-2 py-1 rounded-md border border-border/50 transition-colors"
+                    >
+                      <div className="w-2 h-2 rounded-full shadow-sm" style={{ backgroundColor: c.color }} />
+                      <span className="font-medium opacity-70">{c.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="p-0">
@@ -199,7 +289,11 @@ export function WorkloadChart({ assignments, semester, onColorChange }: Workload
               <div className="absolute inset-0 opacity-5 bg-[radial-gradient(#000000_1px,transparent_1px)] [background-size:16px_16px] dark:bg-[radial-gradient(#ffffff_1px,transparent_1px)]" />
 
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData} margin={{ top: 20, right: 0, left: 0, bottom: 0 }}>
+                <AreaChart
+                  data={chartData}
+                  margin={{ top: 20, right: 0, left: 10, bottom: 0 }}
+                  stackOffset={isRelativeMode ? "expand" : undefined}
+                >
                   <defs>
                     {classNames.map(({ name, color }) => (
                       <linearGradient key={name} id={`gradient-${name.replace(/\s+/g, '-')}`} x1="0" y1="0" x2="0" y2="1">
@@ -208,11 +302,19 @@ export function WorkloadChart({ assignments, semester, onColorChange }: Workload
                       </linearGradient>
                     ))}
                   </defs>
+                  {chartData.length > 0 && (
+                    <ReferenceArea
+                      x1={chartData[0].displayDate}
+                      x2={format(new Date(), "MMM d")}
+                      fill="#4f4f4fff"
+                      fillOpacity={0.3}
+                    />
+                  )}
                   <CartesianGrid
                     strokeDasharray="3 3"
                     vertical={false}
                     stroke="hsl(var(--foreground))"
-                    opacity={0.05}
+                    opacity={0.5}
                   />
                   <XAxis
                     dataKey="displayDate"
@@ -222,15 +324,37 @@ export function WorkloadChart({ assignments, semester, onColorChange }: Workload
                     minTickGap={30}
                     tickMargin={10}
                   />
-                  {/* Hide Y Axis as values are artificial (base + count) */}
                   <YAxis
-                    hide
-                    domain={[0, Math.ceil(maxStackHeight) || 1]}
+                    hide={!isRelativeMode}
+                    domain={isRelativeMode ? [0, 1] : [0, Math.ceil(maxStackHeight) || 1]}
+                    tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                    tickFormatter={(value) => isRelativeMode ? `${(value * 100).toFixed(0)}%` : value}
+                    axisLine={false}
+                    tickLine={false}
+                    width={30}
                   />
                   <Tooltip
                     content={<CustomTooltip />}
                     cursor={{ stroke: 'hsl(var(--primary))', strokeWidth: 1, strokeDasharray: '4 4' }}
                   />
+
+                  {sundays.map((date, index) => (
+                    <ReferenceLine
+                      key={`sunday-${index}`}
+                      x={format(date, "MMM d")}
+                      stroke="hsl(var(--muted-foreground))"
+                      strokeOpacity={0.2}
+                      strokeDasharray="3 3"
+                      label={{
+                        value: format(date, "MMM d"),
+                        position: 'insideTop',
+                        fill: 'hsl(var(--muted-foreground))',
+                        fontSize: 9,
+                        opacity: 0.5,
+                        offset: 10
+                      }}
+                    />
+                  ))}
 
                   <ReferenceLine
                     x={format(new Date(), "MMM d")}
@@ -258,6 +382,20 @@ export function WorkloadChart({ assignments, semester, onColorChange }: Workload
                       animationDuration={1500}
                     />
                   ))}
+
+                  {isRelativeMode && (
+                    <Area
+                      type="monotone"
+                      dataKey="free_time"
+                      stackId="1"
+                      stroke="transparent"
+                      fill="hsl(var(--muted))"
+                      fillOpacity={0.1}
+                      animationDuration={1500}
+                      activeDot={false}
+                      tooltipType="none"
+                    />
+                  )}
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -268,47 +406,4 @@ export function WorkloadChart({ assignments, semester, onColorChange }: Workload
   );
 }
 
-function ColorPickerPopover({ name, currentColor, onColorChange }: { name: string, currentColor: string, onColorChange?: (name: string, color: string) => void }) {
-  const [tempColor, setTempColor] = useState(currentColor);
 
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <button className="flex items-center gap-1.5 text-[10px] bg-secondary/50 px-2 py-1 rounded-md border border-border/50 hover:bg-secondary/80 transition-colors cursor-pointer ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: currentColor }} />
-          <span className="font-medium opacity-70">{name}</span>
-        </button>
-      </PopoverTrigger>
-      <PopoverContent className="w-64">
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label>Edit Color for {name}</Label>
-            <div className="flex gap-2">
-              <Input
-                type="color"
-                value={tempColor}
-                className="w-12 h-8 p-1 cursor-pointer"
-                onChange={(e) => setTempColor(e.target.value)}
-              />
-              <Input
-                type="text"
-                value={tempColor}
-                className="flex-1 h-8 uppercase"
-                onChange={(e) => {
-                  setTempColor(e.target.value);
-                }}
-              />
-            </div>
-            <Button
-              size="sm"
-              className="w-full"
-              onClick={() => onColorChange?.(name, tempColor)}
-            >
-              Set Color
-            </Button>
-          </div>
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-}

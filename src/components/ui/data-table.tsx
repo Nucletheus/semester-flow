@@ -4,7 +4,7 @@ import {
   getCoreRowModel,
   useReactTable,
   getSortedRowModel,
-  SortingState,
+  RowSelectionState,
 } from "@tanstack/react-table"
 import {
   Table,
@@ -20,12 +20,18 @@ interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
   meta?: any
+  rowSelection?: RowSelectionState
+  setRowSelection?: React.Dispatch<React.SetStateAction<RowSelectionState>>
+  getRowId?: (originalRow: TData, index: number, parent?: any) => string
 }
 
 export function DataTable<TData, TValue>({
   columns,
   data,
   meta,
+  rowSelection,
+  setRowSelection,
+  getRowId,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([])
 
@@ -35,8 +41,11 @@ export function DataTable<TData, TValue>({
     getCoreRowModel: getCoreRowModel(),
     onSortingChange: setSorting,
     getSortedRowModel: getSortedRowModel(),
+    onRowSelectionChange: setRowSelection,
+    getRowId,
     state: {
       sorting,
+      rowSelection,
     },
     meta,
   })
@@ -74,8 +83,12 @@ export function DataTable<TData, TValue>({
                   data-state={row.getIsSelected() && "selected"}
                   className={isCompleted ? "opacity-60" : undefined}
                   style={{
-                    backgroundColor: (row.original as any).color ? `${(row.original as any).color}33` : undefined, // 33 = ~20% opacity for more prominence
-                    borderLeft: (row.original as any).color ? `4px solid ${(row.original as any).color}` : undefined,
+                    backgroundColor: (row.original as any).color?.startsWith('var(')
+                      ? `hsl(${(row.original as any).color} / 0.1)`
+                      : (row.original as any).color ? `${(row.original as any).color}33` : undefined,
+                    borderLeft: (row.original as any).color?.startsWith('var(')
+                      ? `4px solid hsl(${(row.original as any).color})`
+                      : (row.original as any).color ? `4px solid ${(row.original as any).color}` : undefined,
                     textDecoration: isCompleted ? "line-through" : undefined
                   }}
                 >

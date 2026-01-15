@@ -4,58 +4,11 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Student Workload Tracker Design System
-   Clean, calming academic aesthetic with soft accent colors
-*/
-
 @layer base {
   :root {
-    /* Core palette - Warm off-white with charcoal text */
-    --background: 40 20% 98%;
-    --foreground: 220 20% 20%;
-
-    --card: 0 0% 100%;
-    --card-foreground: 220 20% 20%;
-
-    --popover: 0 0% 100%;
-    --popover-foreground: 220 20% 20%;
-
-    /* Primary - Deep indigo for main actions */
-    --primary: 234 60% 50%;
-    --primary-foreground: 0 0% 100%;
-
-    /* Secondary - Soft gray-blue */
-    --secondary: 220 20% 94%;
-    --secondary-foreground: 220 20% 30%;
-
-    /* Muted - Light gray for subtle backgrounds */
-    --muted: 220 15% 95%;
-    --muted-foreground: 220 10% 50%;
-
-    /* Accent - Soft sage green */
-    --accent: 150 30% 92%;
-    --accent-foreground: 150 40% 25%;
-
-    --destructive: 0 70% 55%;
-    --destructive-foreground: 0 0% 100%;
-
-    --border: 220 15% 88%;
-    --input: 220 15% 88%;
-    --ring: 234 60% 50%;
-
+    /* Shared Defaults */
     --radius: 0.75rem;
 
-    /* Class colors for the chart */
-    --class-sage: 150 40% 55%;
-    --class-coral: 15 80% 65%;
-    --class-sky: 200 75% 60%;
-    --class-lavender: 270 50% 70%;
-    --class-amber: 40 85% 60%;
-    --class-rose: 340 70% 65%;
-    --class-teal: 175 55% 50%;
-    --class-indigo: 234 60% 55%;
-
-    /* Shadows */
     --shadow-soft: 0 2px 8px -2px hsl(220 20% 20% / 0.08);
     --shadow-medium: 0 4px 16px -4px hsl(220 20% 20% / 0.12);
     --shadow-large: 0 8px 32px -8px hsl(220 20% 20% / 0.16);
@@ -68,45 +21,467 @@
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Default Theme (Tropical) Fallback */
+    --background: 40 20% 98%;
+    --foreground: 220 20% 20%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 20% 20%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 20% 20%;
+
+    --primary: 284 79% 25%;
+    /* Indigo Based */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 46 100% 62%;
+    /* Golden Pollen Based */
+    --secondary-foreground: 220 20% 30%;
+    --muted: 220 15% 95%;
+    --muted-foreground: 220 10% 50%;
+    --accent: 166 60% 92%;
+    /* Turquoise Tint */
+    --accent-foreground: 166 60% 25%;
+    --destructive: 347 84% 60%;
+    /* Watermelon Based */
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 15% 88%;
+    --input: 220 15% 88%;
+    --ring: 284 79% 25%;
+
+    /* Class Colors */
+    --theme-color-1: 284 78.9% 24.1%;
+    --theme-color-2: 149 69.2% 17.8%;
+    --theme-color-3: 339 81.8% 28%;
+    --theme-color-4: 154 85% 36.7%;
+    --theme-color-5: 347 83.5% 59.6%;
+    --theme-color-6: 166 60% 52%;
+    --theme-color-7: 284 83.6% 12%;
+    --theme-color-8: 180 100% 93.9%;
+    --theme-color-9: 47 78.8% 53.7%;
+    --theme-color-10: 46 100% 62.4%;
   }
 
-  .dark {
-    --background: 220 25% 10%;
+
+  /* 
+   * THEME: TROPICAL (Vibrant / Indigo & Watermelon)
+   */
+  .theme-tropical {
+    --background: 40 20% 98%;
+    --foreground: 220 20% 20%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 20% 20%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 20% 20%;
+
+    --primary: 284 79% 25%;
+    /* Indigo Based */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 46 100% 62%;
+    /* Golden Pollen Based */
+    --secondary-foreground: 220 20% 30%;
+    --muted: 220 15% 95%;
+    --muted-foreground: 220 10% 50%;
+    --accent: 166 60% 92%;
+    /* Turquoise Tint */
+    --accent-foreground: 166 60% 25%;
+    --destructive: 347 84% 60%;
+    /* Watermelon Based */
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 15% 88%;
+    --input: 220 15% 88%;
+    --ring: 284 79% 25%;
+
+    /* Class Colors */
+    /* Tropical Class Colors - User Provided Vibrant Palette */
+    /* Theme: TROPICAL (Optimized) */
+    --theme-color-1: 284 78.9% 24.1%;
+    /* Indigo */
+    --theme-color-2: 149 69.2% 17.8%;
+    /* Dark Jungle */
+    --theme-color-3: 339 81.8% 28%;
+    /* Deep Red/Magenta */
+    --theme-color-4: 154 85% 36.7%;
+    /* Jungle Green */
+    --theme-color-5: 347 83.5% 59.6%;
+    /* Watermelon */
+    --theme-color-6: 166 60% 52%;
+    /* Turquoise */
+    --theme-color-7: 284 83.6% 12%;
+    /* Deep Indigo */
+    --theme-color-8: 180 100% 93.9%;
+    /* Light Cyan */
+    --theme-color-9: 47 78.8% 53.7%;
+    /* Dark Gold */
+    --theme-color-10: 46 100% 62.4%;
+    /* Golden Pollen */
+  }
+
+  .theme-tropical.dark {
+    --background: 280 25% 10%;
     --foreground: 220 15% 90%;
-
-    --card: 220 25% 12%;
+    --card: 280 25% 12%;
     --card-foreground: 220 15% 90%;
-
-    --popover: 220 25% 12%;
+    --popover: 280 25% 12%;
     --popover-foreground: 220 15% 90%;
 
-    --primary: 234 60% 60%;
+    --primary: 284 70% 65%;
+    /* Lighter Indigo */
     --primary-foreground: 0 0% 100%;
-
-    --secondary: 220 20% 18%;
+    --secondary: 280 20% 18%;
     --secondary-foreground: 220 15% 85%;
-
-    --muted: 220 20% 16%;
+    --muted: 280 20% 16%;
     --muted-foreground: 220 10% 60%;
-
-    --accent: 150 30% 18%;
-    --accent-foreground: 150 40% 75%;
-
-    --destructive: 0 62.8% 30.6%;
+    --accent: 166 30% 18%;
+    /* Turquoise tint */
+    --accent-foreground: 166 40% 75%;
+    --destructive: 347 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 220 20% 20%;
-    --input: 220 20% 20%;
-    --ring: 234 60% 60%;
+    --border: 280 20% 20%;
+    --input: 280 20% 20%;
+    --ring: 284 70% 65%;
+  }
 
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+
+  /* 
+   * THEME: OCEAN (Serene / Cyan & Teal)
+   */
+  .theme-ocean {
+    --background: 195 50% 98%;
+    --foreground: 200 60% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 200 50% 20%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 200 50% 20%;
+
+    --primary: 190 90% 40%;
+    /* Deep Cyan */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 195 40% 90%;
+    --secondary-foreground: 195 60% 30%;
+    --muted: 200 20% 94%;
+    --muted-foreground: 200 25% 55%;
+    --accent: 170 50% 90%;
+    --accent-foreground: 170 80% 30%;
+    --destructive: 0 70% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 195 30% 85%;
+    --input: 195 30% 85%;
+    --ring: 190 90% 40%;
+
+    /* Aquatic Class Colors */
+    /* Aquatic Class Colors - Distinct Blues/Greens + Pops of Warmth */
+    /* Ocean Theme - Optimized High Contrast */
+    --theme-color-1: 197 100% 4.9%;
+    /* #001219 */
+    --theme-color-2: 19 94.9% 37.3%;
+    /* #bb3e03 */
+    --theme-color-3: 190 100% 22.5%;
+    /* #005f73 */
+    --theme-color-4: 5 78.6% 38%;
+    /* #ae2012 */
+    --theme-color-5: 178 87.3% 31.4%;
+    /* #0a9396 */
+    --theme-color-6: 358 62.5% 37.1%;
+    /* #9b2226 */
+    --theme-color-7: 161 41.3% 70.2%;
+    /* #94d2bd */
+    --theme-color-8: 30 96.9% 40%;
+    /* #ca6702 */
+    --theme-color-9: 45 61.6% 78.2%;
+    /* #e9d8a6 */
+    --theme-color-10: 39 100% 46.7%;
+    /* #ee9b00 */
+  }
+
+  .theme-ocean.dark {
+    --background: 200 50% 8%;
+    --foreground: 195 30% 90%;
+    --card: 200 50% 11%;
+    --card-foreground: 195 30% 95%;
+    --popover: 200 50% 11%;
+    --popover-foreground: 195 30% 95%;
+
+    --primary: 190 80% 50%;
+    --primary-foreground: 200 60% 10%;
+    --secondary: 200 40% 18%;
+    --secondary-foreground: 195 40% 85%;
+    --muted: 200 40% 15%;
+    --muted-foreground: 200 20% 65%;
+    --accent: 170 60% 20%;
+    --accent-foreground: 170 70% 85%;
+    --destructive: 0 60% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 200 40% 20%;
+    --input: 200 40% 20%;
+    --ring: 190 80% 50%;
+  }
+
+  /* 
+   * THEME: FOREST (Natural / Green & Earth)
+   */
+  .theme-forest {
+    --background: 67 19% 95%;
+    /* Tint of Dry Sage for readability */
+    --foreground: 90 20% 20%;
+    /* Charcoal Brown */
+
+    --card: 0 0% 100%;
+    --card-foreground: 90 20% 20%;
+    /* Charcoal Brown */
+    --popover: 0 0% 100%;
+    --popover-foreground: 90 20% 20%;
+    /* Charcoal Brown */
+
+    --primary: 74 19% 36%;
+    /* Dusty Olive */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 67 19% 72%;
+    /* Dry Sage */
+    --secondary-foreground: 90 20% 20%;
+    /* Charcoal Brown */
+
+    --muted: 67 19% 88%;
+    /* Light Dry Sage */
+    --muted-foreground: 80 17% 24%;
+    /* Ebony */
+
+    --accent: 35 27% 52%;
+    /* Camel */
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 30 44% 40%;
+    /* Toffee Brown */
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 74 19% 36%;
+    /* Dusty Olive */
+    --input: 74 19% 36%;
+    --ring: 74 19% 36%;
+
+    /* Earthy Class Colors - User Provided Palette */
+    /* Arranged for distinctiveness and contrast */
+    --theme-color-1: 67 19% 72%;
+    /* Dry Sage */
+    --theme-color-2: 90 20% 20%;
+    /* Charcoal Brown */
+    --theme-color-3: 46 21% 64%;
+    /* Khaki Beige */
+    --theme-color-4: 27 73% 20%;
+    /* Dark Walnut */
+    --theme-color-5: 35 27% 52%;
+    /* Camel */
+    --theme-color-6: 80 17% 24%;
+    /* Ebony */
+    --theme-color-7: 73 19% 60%;
+    /* Dry Sage 2 */
+    --theme-color-8: 28 56% 32%;
+    /* Saddle Brown */
+    --theme-color-9: 30 44% 40%;
+    /* Toffee Brown */
+    --theme-color-10: 74 19% 36%;
+    /* Dusty Olive */
+  }
+
+  .theme-forest.dark {
+    --background: 90 20% 20%;
+    /* Charcoal Brown */
+    --foreground: 67 19% 90%;
+    /* Dry Sage Tint */
+
+    --card: 80 17% 24%;
+    /* Ebony */
+    --card-foreground: 67 19% 90%;
+
+    --popover: 80 17% 24%;
+    /* Ebony */
+    --popover-foreground: 67 19% 90%;
+
+    --primary: 35 27% 52%;
+    /* Camel */
+    --primary-foreground: 27 73% 20%;
+    /* Dark Walnut */
+
+    --secondary: 27 73% 20%;
+    /* Dark Walnut */
+    --secondary-foreground: 67 19% 80%;
+
+    --muted: 28 56% 32%;
+    /* Saddle Brown */
+    --muted-foreground: 67 19% 70%;
+
+    --accent: 73 19% 60%;
+    /* Dry Sage 2 */
+    --accent-foreground: 90 20% 20%;
+
+    --destructive: 30 44% 40%;
+    /* Toffee Brown */
+    --destructive-foreground: 90 20% 90%;
+
+    --border: 80 17% 30%;
+    --input: 80 17% 30%;
+    --ring: 35 27% 52%;
+  }
+
+  /* 
+   * THEME: SUNSET (Vibrant / Orange & Pink)
+   */
+  .theme-sunset {
+    --background: 20 50% 98%;
+    --foreground: 340 40% 20%;
+    --card: 0 0% 100%;
+    --card-foreground: 340 40% 25%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 340 40% 25%;
+
+    --primary: 15 85% 55%;
+    /* Warm Orange-Red */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 330 30% 94%;
+    --secondary-foreground: 340 50% 35%;
+    --muted: 20 20% 95%;
+    --muted-foreground: 350 20% 55%;
+    --accent: 40 60% 92%;
+    /* Golden */
+    --accent-foreground: 30 70% 35%;
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 15 25% 88%;
+    --input: 15 25% 88%;
+    --ring: 15 85% 55%;
+
+    /* Warm Class Colors */
+    /* Warm Class Colors - High Saturation */
+    /* Sunset Theme - Optimized High Contrast */
+    --theme-color-1: 18 100% 50%;
+    /* Flame Orange */
+    --theme-color-2: 180 100% 25.1%;
+    /* Electric Blue */
+    --theme-color-3: 15 100% 37.5%;
+    /* Rusty Spice */
+    --theme-color-4: 240 100% 27.3%;
+    /* Deep Blue */
+    --theme-color-5: 60 55.6% 91.2%;
+    /* Cream */
+    --theme-color-6: 275 100% 25.5%;
+    /* Indigo */
+    --theme-color-7: 69 95.3% 33.3%;
+    /* Lime Moss */
+    --theme-color-8: 330 100% 70.6%;
+    /* Hot Pink */
+    --theme-color-9: 46 100% 48%;
+    /* Golden Orange */
+    --theme-color-10: 40 95.9% 47.3%;
+    /* Amber Gold */
+  }
+
+  .theme-sunset.dark {
+    --background: 340 30% 10%;
+    --foreground: 20 40% 95%;
+    --card: 340 30% 13%;
+    --card-foreground: 20 30% 95%;
+    --popover: 340 30% 13%;
+    --popover-foreground: 20 30% 95%;
+
+    --primary: 15 80% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 340 30% 20%;
+    --secondary-foreground: 10 40% 90%;
+    --muted: 340 25% 18%;
+    --muted-foreground: 350 20% 70%;
+    --accent: 40 40% 25%;
+    --accent-foreground: 40 60% 85%;
+    --destructive: 0 60% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 340 30% 25%;
+    --input: 340 30% 25%;
+    --ring: 15 80% 60%;
+  }
+
+  /* 
+   * THEME: NEBULA (Cyber / Violet & Neon)
+   */
+  .theme-nebula {
+    --background: 260 30% 98%;
+    --foreground: 270 50% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 270 40% 20%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 270 40% 20%;
+
+    --primary: 270 70% 55%;
+    /* Rich Violet */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 250 30% 94%;
+    --secondary-foreground: 260 50% 35%;
+    --muted: 260 20% 95%;
+    --muted-foreground: 260 25% 60%;
+    --accent: 310 40% 92%;
+    /* Pinkish */
+    --accent-foreground: 310 60% 30%;
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 270 20% 88%;
+    --input: 270 20% 88%;
+    --ring: 270 70% 55%;
+
+    /* Neon/Rich Class Colors */
+    /* Neon Class Colors - Cyberpunk */
+    /* Nebula Theme - Optimized High Contrast (Vivid Spectrum) */
+    --theme-color-1: 0 100% 50%;
+    /* Red */
+    --theme-color-2: 184 100% 52%;
+    /* Electric Aqua */
+    --theme-color-3: 32 100% 50%;
+    /* Princeton Orange */
+    --theme-color-4: 212 92% 52%;
+    /* Azure Blue */
+    --theme-color-5: 50 100% 50%;
+    /* Gold */
+    --theme-color-6: 259 100% 52%;
+    /* Electric Indigo */
+    --theme-color-7: 83 100% 52%;
+    /* Slime Lime */
+    --theme-color-8: 284 100% 52%;
+    /* Hyper Magenta */
+    --theme-color-9: 68 100% 52%;
+    /* Lime Yellow */
+    --theme-color-10: 155 100% 52%;
+    /* Spring Green */
+  }
+
+  .theme-nebula.dark {
+    --background: 270 40% 8%;
+    --foreground: 260 30% 95%;
+    --card: 270 40% 11%;
+    --card-foreground: 260 20% 95%;
+    --popover: 270 40% 11%;
+    --popover-foreground: 260 20% 95%;
+
+    --primary: 270 80% 65%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 260 40% 15%;
+    --secondary-foreground: 260 20% 90%;
+    --muted: 260 40% 12%;
+    --muted-foreground: 260 20% 70%;
+    --accent: 320 50% 20%;
+    --accent-foreground: 320 60% 90%;
+    --destructive: 0 60% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 270 40% 20%;
+    --input: 270 40% 20%;
+    --ring: 270 80% 65%;
   }
 }
 
@@ -120,7 +495,7 @@
   }
 
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply bg-background text-foreground antialiased transition-colors duration-300;
   }
 }
 
@@ -144,16 +519,22 @@
   }
 
   @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
   }
 
   @keyframes slideUp {
-    from { 
+    from {
       opacity: 0;
       transform: translateY(10px);
     }
-    to { 
+
+    to {
       opacity: 1;
       transform: translateY(0);
     }

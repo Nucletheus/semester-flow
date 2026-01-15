@@ -9,6 +9,7 @@ import { AssignmentForm } from "@/components/AssignmentForm";
 import { SemesterSettings } from "@/components/SemesterSettings";
 import { useSemesters } from "@/hooks/useSemesters";
 import { useAssignments, Assignment } from "@/hooks/useAssignments";
+import { getClassThemeColor } from "@/lib/themeColors";
 import { Badge } from "@/components/ui/badge";
 import { BulkAddDialog } from "@/components/BulkAddDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,19 +31,28 @@ export default function Dashboard() {
 
   // Get next 5 upcoming assignments
   const upcomingAssignments = assignments
-    .filter((a) => !isPast(parseISO(a.due_date)) || isToday(parseISO(a.due_date)))
+    .filter((a) => (!isPast(parseISO(a.due_date)) || isToday(parseISO(a.due_date))) && a.status !== 'completed')
     .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime())
     .slice(0, 5);
+
+
+  const uniqueClassNames = useMemo(() => {
+    return [...new Set(assignments.map(a => a.class_name).filter(Boolean).map(n => n.trim()))].sort();
+  }, [assignments]);
 
   const classOptions = useMemo(() => {
     const map = new Map();
     assignments.forEach((a) => {
       if (a.class_name && !map.has(a.class_name)) {
-        map.set(a.class_name, { label: a.class_name, value: a.class_name, color: a.color });
+        map.set(a.class_name, {
+          label: a.class_name,
+          value: a.class_name,
+          color: getClassThemeColor(a.class_name, uniqueClassNames)
+        });
       }
     });
     return Array.from(map.values());
-  }, [assignments]);
+  }, [assignments, uniqueClassNames]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -69,10 +79,10 @@ export default function Dashboard() {
             </div>
             <h3 className="text-lg font-medium mb-2">Get Started</h3>
             <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
-              Create your first semester to start tracking your academic workload
+              Create your first timeline to start tracking your workload
             </p>
             <Button onClick={() => setShowSemesterSettings(true)}>
-              Create Semester
+              Create Timeline
             </Button>
           </div>
         ) : (
@@ -117,7 +127,7 @@ export default function Dashboard() {
                         <div className="flex items-center gap-3 min-w-0">
                           <div
                             className="w-1 h-8 rounded-full flex-shrink-0"
-                            style={{ backgroundColor: assignment.color }}
+                            style={{ backgroundColor: getClassThemeColor(assignment.class_name, uniqueClassNames) }}
                           />
                           <div className="min-w-0">
                             <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">

@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Plus, Layers } from "lucide-react";
+import { Plus, Layers, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Header } from "@/components/Header";
 import { DataTable } from "@/components/ui/data-table"; // Updated import
@@ -9,17 +9,19 @@ import { AssignmentForm } from "@/components/AssignmentForm";
 import { SemesterSettings } from "@/components/SemesterSettings";
 import { useSemesters } from "@/hooks/useSemesters";
 import { useAssignments, Assignment } from "@/hooks/useAssignments";
+import { getClassThemeColor, getClassThemeVar } from "@/lib/themeColors";
 import { Badge } from "@/components/ui/badge";
 
 export default function Deadlines() {
   const { activeSemester, isLoading: semestersLoading } = useSemesters();
-  const { assignments, createAssignment, createAssignments, updateAssignment, deleteAssignment } = useAssignments(
+  const { assignments, createAssignment, createAssignments, updateAssignment, deleteAssignment, deleteAssignments } = useAssignments(
     activeSemester?.id
   );
 
   const [showSemesterSettings, setShowSemesterSettings] = useState(false);
   const [showBulkAdd, setShowBulkAdd] = useState(false);
   const [showAssignmentForm, setShowAssignmentForm] = useState(false);
+  const [rowSelection, setRowSelection] = useState({});
 
   const [lastCreatedId, setLastCreatedId] = useState<string | null>(null);
 
@@ -43,6 +45,10 @@ export default function Deadlines() {
     }
   };
 
+  const uniqueClassNames = useMemo(() => {
+    return [...new Set(assignments.map(a => a.class_name).filter(Boolean).map(n => n.trim()))].sort();
+  }, [assignments]);
+
   const updateData = (id: string, field: keyof Assignment, value: any) => {
     // If user interacts with a row, it's no longer "just created", so we can clear the focus flag if we want, 
     // or just leave it. Leaving it is fine as autoFocus only runs on mount/update if we are careful.
@@ -53,18 +59,40 @@ export default function Deadlines() {
     deleteAssignment.mutate(id);
   };
 
+  const handleDeleteSelected = () => {
+    const selectedIds = Object.keys(rowSelection);
+    if (selectedIds.length === 0) return;
+
+    deleteAssignments.mutate(selectedIds, {
+      onSuccess: () => {
+        setRowSelection({});
+      }
+    });
+  };
+
   const classOptions = useMemo(() => {
     const map = new Map();
     assignments.forEach((a) => {
       if (a.class_name && !map.has(a.class_name)) {
-        map.set(a.class_name, { label: a.class_name, value: a.class_name, color: a.color });
+        map.set(a.class_name, {
+          label: a.class_name,
+          value: a.class_name,
+          color: getClassThemeColor(a.class_name, uniqueClassNames)
+        });
       }
     });
     return Array.from(map.values());
-  }, [assignments]);
+  }, [assignments, uniqueClassNames]);
 
   // Cast assignments to include status for UI typing
   const data = assignments as AssignmentUI[];
+
+  const tableData = useMemo(() => {
+    return assignments.map(a => ({
+      ...a,
+      color: getClassThemeVar(a.class_name, uniqueClassNames)
+    }));
+  }, [assignments, uniqueClassNames]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -90,6 +118,12 @@ export default function Deadlines() {
           {/* ... existing header content ... */}
           {activeSemester && (
             <div className="flex gap-2">
+              {Object.keys(rowSelection).length > 0 && (
+                <Button variant="destructive" size="sm" onClick={handleDeleteSelected} className="gap-2">
+                  <Trash2 className="w-4 h-4" />
+                  Delete ({Object.keys(rowSelection).length})
+                </Button>
+              )}
               <Button variant="outline" onClick={() => setShowBulkAdd(true)} className="gap-2">
                 <Layers className="w-4 h-4" />
                 Bulk Add
@@ -107,13 +141,16 @@ export default function Deadlines() {
           // ... empty state ...
           <div className="text-center py-16">
             {/* ... */}
-            <Button onClick={() => setShowSemesterSettings(true)}>Create Semester</Button>
+            <Button onClick={() => setShowSemesterSettings(true)}>Create Timeline</Button>
           </div>
         ) : (
           <div className="space-y-4">
             <DataTable
               columns={columns}
-              data={data}
+              data={tableData}
+              rowSelection={rowSelection}
+              setRowSelection={setRowSelection}
+              getRowId={(row) => row.id}
               meta={{
                 updateData,
                 deleteData,

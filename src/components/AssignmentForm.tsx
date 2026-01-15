@@ -119,7 +119,7 @@ export function AssignmentForm({
               name="class_name"
               render={({ field }) => (
                 <FormItem className="flex flex-col">
-                  <FormLabel>Class Name</FormLabel>
+                  <FormLabel>Category</FormLabel>
                   <FormControl>
                     <ClassPicker
                       value={field.value}

@@ -134,6 +134,20 @@ export const useAssignments = (semesterId?: string) => {
     },
   });
 
+  const deleteAssignments = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase.from("assignments").delete().in("id", ids);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["assignments"] });
+      toast({ title: "Assignments deleted" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
   return {
     assignments,
     isLoading,
@@ -141,6 +155,7 @@ export const useAssignments = (semesterId?: string) => {
     createAssignments,
     updateAssignment,
     deleteAssignment,
+    deleteAssignments,
     updateClassColor,
 
   };

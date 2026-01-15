@@ -97,17 +97,17 @@ export function SemesterSettings({ open, onOpenChange }: SemesterSettingsProps) 
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
               <GraduationCap className="w-5 h-5" />
-              Semester Settings
+              Timeline Settings
             </SheetTitle>
           </SheetHeader>
 
           <div className="mt-6 space-y-6">
             {/* Existing Semesters */}
             <div className="space-y-3">
-              <h3 className="text-sm font-medium">Your Semesters</h3>
+              <h3 className="text-sm font-medium">Your Timelines</h3>
               {semesters.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-4">
-                  No semesters yet. Create one to get started!
+                  No timelines yet. Create one to get started!
                 </p>
               ) : (
                 <div className="space-y-2">
@@ -168,14 +168,14 @@ export function SemesterSettings({ open, onOpenChange }: SemesterSettingsProps) 
             {isAdding ? (
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-                  <h3 className="text-sm font-medium">New Semester</h3>
-                  
+                  <h3 className="text-sm font-medium">New Timeline</h3>
+
                   <FormField
                     control={form.control}
                     name="name"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Semester Name</FormLabel>
+                        <FormLabel>Timeline Name</FormLabel>
                         <FormControl>
                           <Input placeholder="e.g., Winter 2026" {...field} />
                         </FormControl>
@@ -271,7 +271,7 @@ export function SemesterSettings({ open, onOpenChange }: SemesterSettingsProps) 
                       Cancel
                     </Button>
                     <Button type="submit" className="flex-1" disabled={createSemester.isPending}>
-                      Create Semester
+                      Create Timeline
                     </Button>
                   </div>
                 </form>
@@ -283,7 +283,7 @@ export function SemesterSettings({ open, onOpenChange }: SemesterSettingsProps) 
                 onClick={() => setIsAdding(true)}
               >
                 <Plus className="w-4 h-4 mr-2" />
-                Add New Semester
+                Add New Timeline
               </Button>
             )}
           </div>
@@ -293,9 +293,9 @@ export function SemesterSettings({ open, onOpenChange }: SemesterSettingsProps) 
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Semester</AlertDialogTitle>
+            <AlertDialogTitle>Delete Timeline</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete this semester and all its assignments. This action cannot be undone.
+              This will permanently delete this timeline and all its assignments. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

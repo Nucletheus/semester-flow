@@ -133,7 +133,7 @@ export function BulkAddDialog({
               </h3>
               <div className="space-y-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Class Name</Label>
+                  <Label className="text-xs">Category</Label>
                   <ClassPicker
                     value={className}
                     onChange={(val, newColor) => {
@@ -231,7 +231,7 @@ export function BulkAddDialog({
                           </p>
                           <div className="flex items-center gap-2 text-xs text-muted-foreground">
                             <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: color }} />
-                            <span>{className || "No Class"}</span>
+                            <span>{className || "No Category"}</span>
                           </div>
                         </div>
                       </div>

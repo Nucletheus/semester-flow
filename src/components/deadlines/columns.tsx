@@ -2,6 +2,7 @@ import { ColumnDef } from "@tanstack/react-table"
 import { Assignment } from "@/hooks/useAssignments"
 import { Button } from "@/components/ui/button"
 import { ArrowUpDown, Trash2 } from "lucide-react"
+import { Checkbox } from "@/components/ui/checkbox"
 import { CellClass } from "./cells/CellClass"
 import { CellDeadline } from "./cells/CellDeadline"
 import { CellStatus } from "./cells/CellStatus"
@@ -22,6 +23,27 @@ export interface TableMeta {
 
 export const columns: ColumnDef<AssignmentUI>[] = [
     {
+        id: "select",
+        header: ({ table }) => (
+            <Checkbox
+                checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
+                onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+                aria-label="Select all"
+                className="translate-y-[2px]"
+            />
+        ),
+        cell: ({ row }) => (
+            <Checkbox
+                checked={row.getIsSelected()}
+                onCheckedChange={(value) => row.toggleSelected(!!value)}
+                aria-label="Select row"
+                className="translate-y-[2px]"
+            />
+        ),
+        enableSorting: false,
+        enableHiding: false,
+    },
+    {
         accessorKey: "class_name",
         header: ({ column }) => {
             return (
@@ -30,7 +52,7 @@ export const columns: ColumnDef<AssignmentUI>[] = [
                     onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
                     className="px-0 hover:bg-transparent"
                 >
-                    Class
+                    Category
                     <ArrowUpDown className="ml-2 h-4 w-4" />
                 </Button>
             )
@@ -54,7 +76,18 @@ export const columns: ColumnDef<AssignmentUI>[] = [
     },
     {
         accessorKey: "assignment_name",
-        header: "Deadline",
+        header: ({ column }) => {
+            return (
+                <Button
+                    variant="ghost"
+                    onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+                    className="px-0 hover:bg-transparent"
+                >
+                    Deadline
+                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                </Button>
+            )
+        },
         cell: ({ row, table }) => {
             const meta = table.options.meta as TableMeta
             return (
@@ -67,7 +100,18 @@ export const columns: ColumnDef<AssignmentUI>[] = [
     },
     {
         accessorKey: "status",
-        header: "Status",
+        header: ({ column }) => {
+            return (
+                <Button
+                    variant="ghost"
+                    onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+                    className="px-0 hover:bg-transparent"
+                >
+                    Status
+                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                </Button>
+            )
+        },
         cell: ({ row, table }) => {
             const meta = table.options.meta as TableMeta
             return (
@@ -80,7 +124,18 @@ export const columns: ColumnDef<AssignmentUI>[] = [
     },
     {
         accessorKey: "due_date",
-        header: "Due Date",
+        header: ({ column }) => {
+            return (
+                <Button
+                    variant="ghost"
+                    onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+                    className="px-0 hover:bg-transparent"
+                >
+                    Due Date
+                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                </Button>
+            )
+        },
         cell: ({ row, table }) => {
             const meta = table.options.meta as TableMeta
             return (

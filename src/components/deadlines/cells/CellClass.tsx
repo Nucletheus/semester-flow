@@ -28,27 +28,9 @@ interface CellClassProps {
     autoFocus?: boolean;
 }
 
-const PASTEL_COLORS = [
-    "#FFB3BA", // Pastel Pink
-    "#FFDFBA", // Pastel Orange
-    "#FFFFBA", // Pastel Yellow
-    "#BAFFC9", // Pastel Green
-    "#BAE1FF", // Pastel Blue
-    "#E6E6FA", // Lavender
-    "#FFC0CB", // Pink
-    "#DDA0DD", // Plum
-    "#B0E0E6", // Powder Blue
-    "#F0E68C", // Khaki
-    "#E0BBE4", // Lavender Purple
-    "#957DAD", // Muted Purple
-    "#D291BC", // Pastel Violet
-    "#FEC8D8", // Pale Pink
-    "#FFDFD3", // Pastel Peach
-    "#B5EAD7", // Mint
-    "#C7CEEA", // Periwinkle
-];
+// Theme colors are handled by parent component options now
+const getRandomColor = () => "#000000"; // Fallback only, shouldn't be reached in new flow
 
-const getRandomColor = () => PASTEL_COLORS[Math.floor(Math.random() * PASTEL_COLORS.length)];
 
 export function CellClass({ initialValue, onUpdate, options = [], autoFocus = false }: CellClassProps) {
     const [open, setOpen] = useState(false)
@@ -80,8 +62,9 @@ export function CellClass({ initialValue, onUpdate, options = [], autoFocus = fa
             handleSelect(existing);
         } else {
             // Create new
-            const newColor = getRandomColor();
-            onUpdate(trimmedValue, newColor);
+            // In the new system, color is derived from the name rotation in Dashboard/Deadlines.
+            // We pass a dummy color that will be overwritten or ignored by display logic.
+            onUpdate(trimmedValue, "#000000");
             setOpen(false);
         }
     }
@@ -128,7 +111,15 @@ export function CellClass({ initialValue, onUpdate, options = [], autoFocus = fa
                     aria-expanded={open}
                     className="w-full justify-between font-normal hover:bg-muted/50 truncate px-2"
                 >
-                    <span className="truncate">{initialValue || "Select class..."}</span>
+                    <div className="flex items-center gap-2 truncate">
+                        {initialValue && (
+                            <div
+                                className="w-2 h-2 rounded-full shrink-0"
+                                style={{ backgroundColor: options.find(o => o.label === initialValue)?.color || "transparent" }}
+                            />
+                        )}
+                        <span className="truncate">{initialValue || "Select class..."}</span>
+                    </div>
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
             </PopoverTrigger>
