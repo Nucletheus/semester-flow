@@ -11,9 +11,10 @@ import { cn } from "@/lib/utils"
 interface CellStatusProps {
     initialValue: string
     onUpdate: (value: string) => void
+    isCompact?: boolean;
 }
 
-export function CellStatus({ initialValue, onUpdate }: CellStatusProps) {
+export function CellStatus({ initialValue, onUpdate, isCompact = false }: CellStatusProps) {
     const validValues = ["not started", "in progress", "completed"]
     const displayValue = validValues.includes(initialValue) ? initialValue : "not started"
 
@@ -31,9 +32,16 @@ export function CellStatus({ initialValue, onUpdate }: CellStatusProps) {
 
     return (
         <Select value={displayValue} onValueChange={onUpdate}>
-            <SelectTrigger className="w-[180px] border-none shadow-none h-8 bg-transparent hover:bg-muted/50 px-2 focus:ring-0">
+            <SelectTrigger className={cn(
+                "border-none shadow-none bg-transparent hover:bg-muted/50 px-2 focus:ring-0 transition-all",
+                isCompact ? "w-[130px] h-7" : "w-[180px] h-8"
+            )}>
                 <SelectValue>
-                    <Badge className={cn("rounded-md font-normal w-full justify-center", getBadgeStyle(displayValue))}>
+                    <Badge className={cn(
+                        "rounded-md font-normal w-full justify-center transition-all",
+                        getBadgeStyle(displayValue),
+                        isCompact ? "text-[10px] h-5 py-0 px-1" : "text-xs"
+                    )}>
                         {displayValue}
                     </Badge>
                 </SelectValue>

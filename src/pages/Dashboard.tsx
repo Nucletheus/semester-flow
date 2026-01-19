@@ -1,9 +1,9 @@
 
 import { useState, useMemo } from "react";
-import { Plus, ArrowRight, Layers } from "lucide-react";
+import { createPortal } from "react-dom";
+import { Plus, ArrowRight, Layers, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Header } from "@/components/Header";
 import { WorkloadChart } from "@/components/WorkloadChart";
 import { AssignmentForm } from "@/components/AssignmentForm";
 import { SemesterSettings } from "@/components/SemesterSettings";
@@ -14,9 +14,10 @@ import { Badge } from "@/components/ui/badge";
 import { BulkAddDialog } from "@/components/BulkAddDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format, parseISO, isPast, isToday } from "date-fns";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export default function Dashboard() {
-  const { activeSemester, isLoading: semestersLoading } = useSemesters();
+  const { activeSemester, isLoading: semestersLoading, updateHiddenCategories } = useSemesters();
   const { assignments, createAssignment, createAssignments, updateAssignment, deleteAssignment, updateClassColor } = useAssignments(
     activeSemester?.id
   );
@@ -29,9 +30,9 @@ export default function Dashboard() {
     createAssignment.mutate(values);
   };
 
-  // Get next 5 upcoming assignments
+  // Get next 5 active assignments (including overdue)
   const upcomingAssignments = assignments
-    .filter((a) => (!isPast(parseISO(a.due_date)) || isToday(parseISO(a.due_date))) && a.status !== 'completed')
+    .filter((a) => a.status !== 'completed')
     .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime())
     .slice(0, 5);
 
@@ -56,20 +57,10 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header onOpenSemesterSettings={() => setShowSemesterSettings(true)} />
 
-      <main className="container py-6 md:py-8 space-y-6">
+      <main className="container px-4 py-4 md:py-8 space-y-6">
         {activeSemester && (
-          <div className="flex justify-end">
-            <Button onClick={() => setShowBulkAdd(true)} size="sm" variant="outline" className="gap-1 shadow-sm mr-2">
-              <Layers className="w-3.5 h-3.5" />
-              Bulk Add
-            </Button>
-            <Button onClick={() => setShowAssignmentForm(true)} size="sm" className="gap-1 shadow-sm">
-              <Plus className="w-3.5 h-3.5" />
-              Add Deadline
-            </Button>
-          </div>
+          <div className="h-0" /> /* Spacer or kept empty if needed, or remove completely if layout allows */
         )}
 
         {!activeSemester && !semestersLoading ? (
@@ -92,6 +83,15 @@ export default function Dashboard() {
               assignments={assignments}
               semester={activeSemester}
               onColorChange={(className, newColor) => updateClassColor.mutate({ className, newColor })}
+              hiddenCategories={activeSemester?.hidden_categories ?? []}
+              onHiddenCategoriesChange={(categories) => {
+                if (activeSemester) {
+                  updateHiddenCategories.mutate({
+                    id: activeSemester.id,
+                    hidden_categories: categories
+                  });
+                }
+              }}
             />
 
             {/* Quick Preview of Upcoming Deadlines */}
@@ -139,8 +139,11 @@ export default function Dashboard() {
                           </div>
                         </div>
                         <div className="text-right pl-4 flex-shrink-0">
-                          <Badge variant={isToday(parseISO(assignment.due_date)) ? "destructive" : "outline"} className="text-[10px] font-normal px-1.5 h-5">
-                            {isToday(parseISO(assignment.due_date)) ? "Today" : format(parseISO(assignment.due_date), "MMM d")}
+                          <Badge
+                            variant={isToday(parseISO(assignment.due_date)) || (isPast(parseISO(assignment.due_date)) && !isToday(parseISO(assignment.due_date))) ? "destructive" : "outline"}
+                            className="text-[10px] font-normal px-1.5 h-5"
+                          >
+                            {isToday(parseISO(assignment.due_date)) ? "Today" : (isPast(parseISO(assignment.due_date)) && !isToday(parseISO(assignment.due_date))) ? "Overdue" : format(parseISO(assignment.due_date), "MMM d")}
                           </Badge>
                         </div>
                       </div>
@@ -151,7 +154,7 @@ export default function Dashboard() {
             </Card>
 
             {/* Stats Overview */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Card className="shadow-sm bg-card/50">
                 <CardContent className="p-4 text-center">
                   <div className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">Total</div>
@@ -178,6 +181,32 @@ export default function Dashboard() {
           </div>
         )}
       </main>
+
+      {/* Header Actions Portal */}
+      {activeSemester && document.getElementById('header-actions') && createPortal(
+        <div className="flex gap-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" size="sm" onClick={() => setShowBulkAdd(true)} className="gap-2">
+                <Layers className="w-4 h-4" />
+                <span className="hidden sm:inline">Bulk Add</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Bulk Add Assignments</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button size="sm" onClick={() => setShowAssignmentForm(true)} className="gap-2">
+                <Plus className="w-4 h-4" />
+                <span className="hidden sm:inline">Add Deadline</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Add New Deadline</TooltipContent>
+          </Tooltip>
+        </div>,
+        document.getElementById('header-actions')!
+      )}
 
       {/* Forms and Dialogs */}
       {activeSemester && (

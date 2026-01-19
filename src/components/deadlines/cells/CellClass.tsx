@@ -26,13 +26,10 @@ interface CellClassProps {
     onUpdate: (value: string, color?: string) => void
     options?: ClassOption[]
     autoFocus?: boolean;
+    isCompact?: boolean;
 }
 
-// Theme colors are handled by parent component options now
-const getRandomColor = () => "#000000"; // Fallback only, shouldn't be reached in new flow
-
-
-export function CellClass({ initialValue, onUpdate, options = [], autoFocus = false }: CellClassProps) {
+export function CellClass({ initialValue, onUpdate, options = [], autoFocus = false, isCompact = false }: CellClassProps) {
     const [open, setOpen] = useState(false)
     const [searchValue, setSearchValue] = useState("")
 
@@ -62,8 +59,6 @@ export function CellClass({ initialValue, onUpdate, options = [], autoFocus = fa
             handleSelect(existing);
         } else {
             // Create new
-            // In the new system, color is derived from the name rotation in Dashboard/Deadlines.
-            // We pass a dummy color that will be overwritten or ignored by display logic.
             onUpdate(trimmedValue, "#000000");
             setOpen(false);
         }
@@ -109,7 +104,10 @@ export function CellClass({ initialValue, onUpdate, options = [], autoFocus = fa
                     variant="ghost"
                     role="combobox"
                     aria-expanded={open}
-                    className="w-full justify-between font-normal hover:bg-muted/50 truncate px-2"
+                    className={cn(
+                        "w-full justify-between font-normal hover:bg-muted/50 truncate px-2",
+                        isCompact ? "h-7 text-xs" : "h-8"
+                    )}
                 >
                     <div className="flex items-center gap-2 truncate">
                         {initialValue && (
@@ -120,20 +118,20 @@ export function CellClass({ initialValue, onUpdate, options = [], autoFocus = fa
                         )}
                         <span className="truncate">{initialValue || "Select class..."}</span>
                     </div>
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    <ChevronsUpDown className={cn("ml-2 h-4 w-4 shrink-0 opacity-50", isCompact && "h-3 w-3")} />
                 </Button>
             </PopoverTrigger>
             <PopoverContent className="w-[300px] p-0" align="start">
                 <Command>
                     <CommandInput
-                        placeholder="Search class..."
+                        placeholder="Search category..."
                         onValueChange={setSearchValue}
                         value={searchValue}
                         onKeyDown={handleKeyDown}
                     />
                     <CommandList>
                         <CommandEmpty className="py-2 px-2">
-                            <div className="text-sm text-muted-foreground mb-2">No class found.</div>
+                            <div className="text-sm text-muted-foreground mb-2">No category found.</div>
                             <Button
                                 variant="outline"
                                 size="sm"
@@ -144,7 +142,7 @@ export function CellClass({ initialValue, onUpdate, options = [], autoFocus = fa
                                 Create "{searchValue}"
                             </Button>
                         </CommandEmpty>
-                        <CommandGroup heading="Classes">
+                        <CommandGroup heading="Categories">
                             {uniqueOptions.map((option) => (
                                 <CommandItem
                                     key={option.label}

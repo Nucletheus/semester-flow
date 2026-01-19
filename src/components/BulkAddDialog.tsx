@@ -115,7 +115,7 @@ export function BulkAddDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="sm:max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Plus className="h-5 w-5" />
@@ -123,141 +123,144 @@ export function BulkAddDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4 overflow-hidden h-full">
-          {/* Left Column: Configuration & Calendar */}
-          <div className="space-y-6 overflow-y-auto pr-2">
-            {/* 1. Setup */}
-            <div className="space-y-4 rounded-lg border p-4 bg-muted/20">
-              <h3 className="font-medium flex items-center gap-2 text-sm text-primary">
-                1. Configure Pattern
-              </h3>
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Category</Label>
-                  <ClassPicker
-                    value={className}
-                    onChange={(val, newColor) => {
-                      setClassName(val);
-                      if (newColor) {
-                        setColor(newColor);
-                      }
-                    }}
-                    options={classOptions}
+        <div className="flex-1 overflow-y-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 py-4">
+            {/* Left Column: Configuration & Calendar */}
+            <div className="space-y-4 md:space-y-6">
+              {/* 1. Setup */}
+              <div className="space-y-4 rounded-lg border p-4 bg-muted/20">
+                <h3 className="font-medium flex items-center gap-2 text-sm text-primary">
+                  1. Configure Pattern
+                </h3>
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Category</Label>
+                    <ClassPicker
+                      value={className}
+                      onChange={(val, newColor) => {
+                        setClassName(val);
+                        if (newColor) {
+                          setColor(newColor);
+                        }
+                      }}
+                      options={classOptions}
+                    />
+                  </div>
+
+
+
+
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="col-span-2 space-y-1.5">
+                      <Label className="text-xs">Pattern</Label>
+                      <Input
+                        placeholder="Lab {n}"
+                        value={pattern}
+                        onChange={(e) => setPattern(e.target.value)}
+                        className="h-8"
+                      />
+                      <p className="text-[10px] text-muted-foreground">Use {'{n}'} for the number</p>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Start #</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={startNumber}
+                        onChange={(e) => setStartNumber(parseInt(e.target.value) || 1)}
+                        className="h-8"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. Calendar Selection */}
+              <div className="space-y-2">
+                <h3 className="font-medium flex items-center gap-2 text-sm text-primary">
+                  2. Select Dates
+                </h3>
+                <div className="border rounded-lg p-2 md:p-3 flex justify-center bg-card overflow-x-auto">
+                  <Calendar
+                    mode="multiple"
+                    selected={selectedDates}
+                    onSelect={setSelectedDates}
+                    className="rounded-md border-none selected:bg-primary"
                   />
                 </div>
+                <p className="text-xs text-muted-foreground text-center">
+                  Click dates to add/remove deadlines
+                </p>
+              </div>
+            </div>
 
-
-
-
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="col-span-2 space-y-1.5">
-                    <Label className="text-xs">Pattern</Label>
-                    <Input
-                      placeholder="Lab {n}"
-                      value={pattern}
-                      onChange={(e) => setPattern(e.target.value)}
-                      className="h-8"
-                    />
-                    <p className="text-[10px] text-muted-foreground">Use {'{n}'} for the number</p>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Start #</Label>
-                    <Input
-                      type="number"
-                      min={1}
-                      value={startNumber}
-                      onChange={(e) => setStartNumber(parseInt(e.target.value) || 1)}
-                      className="h-8"
-                    />
-                  </div>
+            {/* Right Column: Preview & Action */}
+            {/* Right Column: Preview & Action */}
+            <div className="flex flex-col md:border-l md:pl-6 border-t pt-4 md:border-t-0 md:pt-0">
+              <div className="flex flex-col">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-medium text-sm text-primary">3. Review ({sortedDates.length})</h3>
+                  {sortedDates.length > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 text-xs text-muted-foreground hover:text-destructive"
+                      onClick={() => setSelectedDates([])}
+                    >
+                      Clear All
+                    </Button>
+                  )}
                 </div>
-              </div>
-            </div>
 
-            {/* 2. Calendar Selection */}
-            <div className="space-y-2">
-              <h3 className="font-medium flex items-center gap-2 text-sm text-primary">
-                2. Select Dates
-              </h3>
-              <div className="border rounded-lg p-3 flex justify-center bg-card">
-                <Calendar
-                  mode="multiple"
-                  selected={selectedDates}
-                  onSelect={setSelectedDates}
-                  className="rounded-md border-none selected:bg-primary"
-                />
-              </div>
-              <p className="text-xs text-muted-foreground text-center">
-                Click dates to add/remove deadlines
-              </p>
-            </div>
-          </div>
-
-          {/* Right Column: Preview & Action */}
-          <div className="flex flex-col h-full overflow-hidden border-l pl-6">
-            <div className="flex-1 overflow-hidden flex flex-col">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-medium text-sm text-primary">3. Review ({sortedDates.length})</h3>
-                {sortedDates.length > 0 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 text-xs text-muted-foreground hover:text-destructive"
-                    onClick={() => setSelectedDates([])}
-                  >
-                    Clear All
-                  </Button>
+                {sortedDates.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center text-muted-foreground border-2 border-dashed rounded-lg bg-muted/50 p-4 md:p-6">
+                    <CalendarIcon className="w-8 h-8 md:w-10 md:h-10 mb-2 opacity-20" />
+                    <p className="text-sm font-medium">No dates selected</p>
+                    <p className="text-xs opacity-70 text-center mt-1">Configure your pattern and click dates on the calendar.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-48 md:max-h-64 overflow-y-auto pr-2">
+                    {sortedDates.map((date, i) => (
+                      <div key={date.toISOString()} className="group flex items-center justify-between p-3 rounded-lg border bg-card hover:border-primary/50 transition-colors shadow-sm">
+                        <div className="flex items-center gap-3">
+                          <div className="flex flex-col items-center justify-center w-10 h-10 rounded-md bg-muted/50 border text-xs font-medium">
+                            <span className="opacity-50 text-[10px] uppercase leading-none">{format(date, "MMM")}</span>
+                            <span className="text-lg leading-none">{format(date, "d")}</span>
+                          </div>
+                          <div>
+                            <p className="font-medium text-sm text-foreground">
+                              {generateAssignmentName(i)}
+                            </p>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: color }} />
+                              <span>{className || "No Category"}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => removeDate(i)}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
 
-              {sortedDates.length === 0 ? (
-                <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground border-2 border-dashed rounded-lg bg-muted/50 p-6">
-                  <CalendarIcon className="w-10 h-10 mb-2 opacity-20" />
-                  <p className="text-sm font-medium">No dates selected</p>
-                  <p className="text-xs opacity-70 text-center mt-1">Configure your pattern and click dates on the calendar to build your list.</p>
-                </div>
-              ) : (
-                <div className="flex-1 overflow-y-auto space-y-2 pr-2">
-                  {sortedDates.map((date, i) => (
-                    <div key={date.toISOString()} className="group flex items-center justify-between p-3 rounded-lg border bg-card hover:border-primary/50 transition-colors shadow-sm">
-                      <div className="flex items-center gap-3">
-                        <div className="flex flex-col items-center justify-center w-10 h-10 rounded-md bg-muted/50 border text-xs font-medium">
-                          <span className="opacity-50 text-[10px] uppercase leading-none">{format(date, "MMM")}</span>
-                          <span className="text-lg leading-none">{format(date, "d")}</span>
-                        </div>
-                        <div>
-                          <p className="font-medium text-sm text-foreground">
-                            {generateAssignmentName(i)}
-                          </p>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: color }} />
-                            <span>{className || "No Category"}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={() => removeDate(i)}
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="pt-6 mt-auto">
-              <Button
-                className="w-full h-11 text-base shadow-md"
-                onClick={handleSubmit}
-                disabled={!className || sortedDates.length === 0}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Create {sortedDates.length} Deadlines
-              </Button>
+              <div className="pt-4 md:pt-6">
+                <Button
+                  className="w-full h-11 text-base shadow-md"
+                  onClick={handleSubmit}
+                  disabled={!className || sortedDates.length === 0}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create {sortedDates.length} Deadlines
+                </Button>
+              </div>
             </div>
           </div>
         </div>

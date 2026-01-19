@@ -77,6 +77,7 @@ export type Database = {
           start_date: string
           updated_at: string
           user_id: string
+          hidden_categories: string[] | null
         }
         Insert: {
           created_at?: string
@@ -87,6 +88,7 @@ export type Database = {
           start_date: string
           updated_at?: string
           user_id: string
+          hidden_categories?: string[] | null
         }
         Update: {
           created_at?: string
@@ -97,6 +99,7 @@ export type Database = {
           start_date?: string
           updated_at?: string
           user_id?: string
+          hidden_categories?: string[] | null
         }
         Relationships: []
       }

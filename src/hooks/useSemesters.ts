@@ -12,6 +12,7 @@ export interface Semester {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  hidden_categories?: string[] | null;
 }
 
 export function useSemesters() {
@@ -38,7 +39,7 @@ export function useSemesters() {
   const createSemester = useMutation({
     mutationFn: async (semester: { name: string; start_date: string; end_date: string; is_active?: boolean }) => {
       if (!user) throw new Error("Not authenticated");
-      
+
       // If this is the first semester or marked as active, deactivate others
       if (semester.is_active || semesters.length === 0) {
         await supabase
@@ -71,7 +72,7 @@ export function useSemesters() {
   const updateSemester = useMutation({
     mutationFn: async ({ id, ...updates }: Partial<Semester> & { id: string }) => {
       if (!user) throw new Error("Not authenticated");
-      
+
       if (updates.is_active) {
         await supabase
           .from("semesters")
@@ -111,6 +112,25 @@ export function useSemesters() {
     },
   });
 
+  // Silent update for hidden categories (no toast)
+  const updateHiddenCategories = useMutation({
+    mutationFn: async ({ id, hidden_categories }: { id: string; hidden_categories: string[] }) => {
+      if (!user) throw new Error("Not authenticated");
+
+      const { data, error } = await supabase
+        .from("semesters")
+        .update({ hidden_categories })
+        .eq("id", id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["semesters"] });
+    },
+  });
+
   return {
     semesters,
     activeSemester,
@@ -118,5 +138,6 @@ export function useSemesters() {
     createSemester,
     updateSemester,
     deleteSemester,
+    updateHiddenCategories,
   };
 }

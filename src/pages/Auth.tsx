@@ -10,9 +10,20 @@ import { BookOpen, Loader2, ArrowLeft, UserPlus } from "lucide-react";
 import { z } from "zod";
 import { cn } from "@/lib/utils";
 
-const authSchema = z.object({
+// Schema for Login (Simple validation for grandfathered users)
+const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  password: z.string().min(1, "Password is required"),
+});
+
+// Schema for New Signups (Strong security enforcement)
+const signupSchema = loginSchema.extend({
+  password: z.string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(/[A-Z]/, "Must contain at least one uppercase letter")
+    .regex(/[a-z]/, "Must contain at least one lowercase letter")
+    .regex(/[0-9]/, "Must contain at least one number")
+    .regex(/[^A-Za-z0-9]/, "Must contain at least one special character"),
 });
 
 type AuthView = "login" | "signup" | "recovery";
@@ -56,7 +67,10 @@ export default function Auth() {
       return true;
     }
 
-    const validation = authSchema.safeParse({ email, password });
+    // Use different schema based on view
+    const schema = view === "signup" ? signupSchema : loginSchema;
+    const validation = schema.safeParse({ email, password });
+
     if (!validation.success) {
       const fieldErrors: { email?: string; password?: string } = {};
       validation.error.errors.forEach((err) => {

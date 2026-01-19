@@ -1,7 +1,10 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { format, parseISO } from "date-fns";
+import { createPortal } from "react-dom";
 import { Plus, Layers, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Header } from "@/components/Header";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { DataTable } from "@/components/ui/data-table"; // Updated import
 import { columns, AssignmentUI } from "@/components/deadlines/columns"; // Create columns definition
 import { BulkAddDialog } from "@/components/BulkAddDialog";
@@ -11,6 +14,8 @@ import { useSemesters } from "@/hooks/useSemesters";
 import { useAssignments, Assignment } from "@/hooks/useAssignments";
 import { getClassThemeColor, getClassThemeVar } from "@/lib/themeColors";
 import { Badge } from "@/components/ui/badge";
+import { SortingState } from "@tanstack/react-table";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export default function Deadlines() {
   const { activeSemester, isLoading: semestersLoading } = useSemesters();
@@ -22,8 +27,21 @@ export default function Deadlines() {
   const [showBulkAdd, setShowBulkAdd] = useState(false);
   const [showAssignmentForm, setShowAssignmentForm] = useState(false);
   const [rowSelection, setRowSelection] = useState({});
+  const [isCompact, setIsCompact] = useState<boolean>(() => {
+    return localStorage.getItem("deadlines-compact") === "true";
+  });
+  const [sorting, setSorting] = useState<SortingState>(() => {
+    const saved = localStorage.getItem("deadlines-sorting");
+    return saved ? JSON.parse(saved) : [];
+  });
 
-  const [lastCreatedId, setLastCreatedId] = useState<string | null>(null);
+  useEffect(() => {
+    localStorage.setItem("deadlines-sorting", JSON.stringify(sorting));
+  }, [sorting]);
+
+  useEffect(() => {
+    localStorage.setItem("deadlines-compact", String(isCompact));
+  }, [isCompact]);
 
   const handleCreate = async () => {
     if (!activeSemester) return;
@@ -37,9 +55,7 @@ export default function Deadlines() {
         color: "#000000",
         status: "not started",
       });
-      if (newAssignment) {
-        setLastCreatedId(newAssignment.id);
-      }
+      // No need to set lastCreatedId or timer anymore
     } catch (error) {
       console.error("Failed to create assignment", error);
     }
@@ -50,8 +66,6 @@ export default function Deadlines() {
   }, [assignments]);
 
   const updateData = (id: string, field: keyof Assignment, value: any) => {
-    // If user interacts with a row, it's no longer "just created", so we can clear the focus flag if we want, 
-    // or just leave it. Leaving it is fine as autoFocus only runs on mount/update if we are careful.
     updateAssignment.mutate({ id, [field]: value });
   };
 
@@ -90,52 +104,14 @@ export default function Deadlines() {
   const tableData = useMemo(() => {
     return assignments.map(a => ({
       ...a,
-      color: getClassThemeVar(a.class_name, uniqueClassNames)
+      color: getClassThemeVar(a.class_name, uniqueClassNames),
     }));
   }, [assignments, uniqueClassNames]);
 
   return (
     <div className="min-h-screen bg-background">
-      <Header onOpenSemesterSettings={() => setShowSemesterSettings(true)} />
 
-      <main className="container py-6 md:py-8 space-y-6">
-        {/* Page Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-3">
-              <h2 className="text-2xl font-semibold">Deadlines</h2>
-              {activeSemester && (
-                <Badge variant="secondary" className="text-xs">
-                  {activeSemester.name}
-                </Badge>
-              )}
-            </div>
-            <p className="text-sm text-muted-foreground mt-1">
-              Manage all your assignments in one place
-            </p>
-          </div>
-
-          {/* ... existing header content ... */}
-          {activeSemester && (
-            <div className="flex gap-2">
-              {Object.keys(rowSelection).length > 0 && (
-                <Button variant="destructive" size="sm" onClick={handleDeleteSelected} className="gap-2">
-                  <Trash2 className="w-4 h-4" />
-                  Delete ({Object.keys(rowSelection).length})
-                </Button>
-              )}
-              <Button variant="outline" onClick={() => setShowBulkAdd(true)} className="gap-2">
-                <Layers className="w-4 h-4" />
-                Bulk Add
-              </Button>
-              <Button onClick={() => setShowAssignmentForm(true)} className="gap-2">
-                <Plus className="w-4 h-4" />
-                Add Deadline
-              </Button>
-            </div>
-          )}
-        </div>
-
+      <main className="container px-4 py-4 md:py-8 space-y-6">
         {/* Content */}
         {!activeSemester && !semestersLoading ? (
           // ... empty state ...
@@ -145,31 +121,76 @@ export default function Deadlines() {
           </div>
         ) : (
           <div className="space-y-4">
+            <div className="flex justify-end items-center gap-2 px-1">
+              <Label htmlFor="compact-mode" className="text-xs font-medium text-muted-foreground select-none">
+                Compact Mode
+              </Label>
+              <Switch
+                id="compact-mode"
+                checked={isCompact}
+                onCheckedChange={setIsCompact}
+              />
+            </div>
             <DataTable
               columns={columns}
               data={tableData}
               rowSelection={rowSelection}
               setRowSelection={setRowSelection}
+              sorting={sorting}
+              setSorting={setSorting}
               getRowId={(row) => row.id}
+              isCompact={isCompact}
               meta={{
                 updateData,
                 deleteData,
                 classOptions,
-                lastCreatedId,
-                onCreateRow: handleCreate
+                onCreateRow: handleCreate,
+                isCompact,
+                semesterStart: activeSemester ? parseISO(activeSemester.start_date) : undefined,
+                semesterEnd: activeSemester ? parseISO(activeSemester.end_date) : undefined
               }}
             />
-            <Button
-              variant="outline"
-              className="w-full border-dashed"
-              onClick={handleCreate}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Add New
-            </Button>
           </div>
         )}
       </main>
+
+      {/* Header Actions Portal */}
+      {activeSemester && document.getElementById('header-actions') && createPortal(
+        <div className="flex gap-2">
+          {Object.keys(rowSelection).length > 0 && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="destructive" size="sm" onClick={handleDeleteSelected} className="gap-2">
+                  <Trash2 className="w-4 h-4" />
+                  <span className="hidden sm:inline">Delete ({Object.keys(rowSelection).length})</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Delete Selected</TooltipContent>
+            </Tooltip>
+          )}
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" size="sm" onClick={() => setShowBulkAdd(true)} className="gap-2">
+                <Layers className="w-4 h-4" />
+                <span className="hidden sm:inline">Bulk Add</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Bulk Add Assignments</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button size="sm" onClick={() => setShowAssignmentForm(true)} className="gap-2">
+                <Plus className="w-4 h-4" />
+                <span className="hidden sm:inline">Add Deadline</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Add New Deadline</TooltipContent>
+          </Tooltip>
+        </div>,
+        document.getElementById('header-actions')!
+      )}
 
       {/* Dialogs */}
       <SemesterSettings

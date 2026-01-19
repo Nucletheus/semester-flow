@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { z } from "zod";
@@ -30,15 +30,6 @@ import {
 import { Assignment } from "@/hooks/useAssignments";
 import { ClassPicker, ClassOption } from "./ClassPicker";
 
-// Keep color picker for when creating a class or overriding?
-// ClassPicker handles color for new classes. But maybe we still want to allow overriding?
-// User said: "Making class dropdown ... that way there are no duplicate classes".
-// If I allow changing color here, does it update all classes? No, assignments have colors, logic is loose.
-// But `ClassPicker` logic is: if new, assign random color.
-// I will keep Color picker but maybe hide it if an existing class is selected? Or just let user override.
-// Actually, standardizing means we should probably respect the class color.
-// But `Assignment` table has `color` column on each row.
-// I'll keep the color picker for flexibility but auto-update it when class changes.
 
 const DEFAULT_COLOR = "#5fa37c";
 
@@ -68,6 +59,8 @@ export function AssignmentForm({
   onSubmit,
   classOptions,
 }: AssignmentFormProps) {
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -110,7 +103,7 @@ export function AssignmentForm({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{assignment ? "Edit Assignment" : "Add New Deadline"}</DialogTitle>
+          <DialogTitle>{assignment ? "Edit Deadline" : "Add New Deadline"}</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
@@ -142,7 +135,7 @@ export function AssignmentForm({
               name="assignment_name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Assignment Name</FormLabel>
+                  <FormLabel>Deadline Name</FormLabel>
                   <FormControl>
                     <Input placeholder="e.g., Lab Report 1" {...field} />
                   </FormControl>
@@ -158,7 +151,7 @@ export function AssignmentForm({
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
                     <FormLabel>Due Date</FormLabel>
-                    <Popover>
+                    <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                       <PopoverTrigger asChild>
                         <FormControl>
                           <Button
@@ -177,7 +170,10 @@ export function AssignmentForm({
                         <Calendar
                           mode="single"
                           selected={field.value}
-                          onSelect={field.onChange}
+                          onSelect={(date) => {
+                            field.onChange(date);
+                            setIsCalendarOpen(false);
+                          }}
                           initialFocus
                           className="p-3 pointer-events-auto"
                         />

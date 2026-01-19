@@ -27,6 +27,8 @@ interface WorkloadChartProps {
   assignments: Assignment[];
   semester: Semester | undefined;
   onColorChange?: (className: string, newColor: string) => void;
+  hiddenCategories?: string[];
+  onHiddenCategoriesChange?: (categories: string[]) => void;
 }
 
 interface ChartDataPoint {
@@ -39,7 +41,13 @@ interface ChartDataPoint {
 // Small base value ensures lines are always visible even with 0 assignments
 const BASE_VALUE = 0.05;
 
-export function WorkloadChart({ assignments, semester, onColorChange }: WorkloadChartProps) {
+export function WorkloadChart({
+  assignments,
+  semester,
+  onColorChange,
+  hiddenCategories: propHiddenCategories,
+  onHiddenCategoriesChange,
+}: WorkloadChartProps) {
   /* State for Relative Mode (100% Stacked) */
   const [isRelativeMode, setIsRelativeMode] = useState(() => {
     if (typeof window !== "undefined") {
@@ -49,12 +57,61 @@ export function WorkloadChart({ assignments, semester, onColorChange }: Workload
     return false;
   });
 
+  /* Local state for Hidden Categories (fallback when props not provided) */
+  const [localHiddenCategories, setLocalHiddenCategories] = useState<Set<string>>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("workloadChartHiddenCategories");
+      if (saved) {
+        try {
+          return new Set(JSON.parse(saved));
+        } catch {
+          return new Set();
+        }
+      }
+    }
+    return new Set();
+  });
+
+  // Use prop value if provided, otherwise fall back to local state
+  const hiddenCategories = useMemo(() => {
+    if (propHiddenCategories !== undefined) {
+      return new Set(propHiddenCategories);
+    }
+    return localHiddenCategories;
+  }, [propHiddenCategories, localHiddenCategories]);
+
   useEffect(() => {
     localStorage.setItem("workloadChartRelativeMode", String(isRelativeMode));
   }, [isRelativeMode]);
 
-  const { chartData, classNames, hasActiveAssignments, maxStackHeight, sundays } = useMemo(() => {
-    if (!semester) return { chartData: [], classNames: [], hasActiveAssignments: false, maxStackHeight: 0, sundays: [] };
+  // Only save to localStorage if not using database persistence
+  useEffect(() => {
+    if (propHiddenCategories === undefined) {
+      localStorage.setItem("workloadChartHiddenCategories", JSON.stringify([...localHiddenCategories]));
+    }
+  }, [localHiddenCategories, propHiddenCategories]);
+
+  const toggleCategory = (categoryName: string) => {
+    const currentHidden = Array.from(hiddenCategories);
+    let newHidden: string[];
+
+    if (hiddenCategories.has(categoryName)) {
+      newHidden = currentHidden.filter(c => c !== categoryName);
+    } else {
+      newHidden = [...currentHidden, categoryName];
+    }
+
+    // If using database persistence (prop callback provided), call it
+    if (onHiddenCategoriesChange) {
+      onHiddenCategoriesChange(newHidden);
+    } else {
+      // Otherwise update local state
+      setLocalHiddenCategories(new Set(newHidden));
+    }
+  };
+
+  const { chartData, classNames, hasActiveAssignments, maxStackHeight, sundays, classColorMap } = useMemo(() => {
+    if (!semester) return { chartData: [], classNames: [], hasActiveAssignments: false, maxStackHeight: 0, sundays: [], classColorMap: new Map() };
 
     // Filter out completed assignments
     const activeAssignments = assignments.filter((a) => a.status !== "completed");
@@ -104,18 +161,19 @@ export function WorkloadChart({ assignments, semester, onColorChange }: Workload
           else if (daysUntilDue === 7) weight += 0.01;
         });
 
-        // Add base value so the layer is always present if there are assignments, 
-        // but we might want the base value to be constant for the area stacked look.
-        // Original code added BASE_VALUE to the count. 
-        // If we want the consistent stream look, we add BASE_VALUE if weight > 0 OR if we just want a baseline for the class existence.
+        // Add base value so the layer is always present
+        // In Relative Mode: Add a distinct baseline so all classes share space evenly if no assignments
+        // In Absolute Mode: Add small base for visual persistence
+        const RELATIVE_BASELINE = 0.2;
 
         let val = 0;
         if (isRelativeMode) {
-          // In relative mode, we only want actual work to show up.
-          // No base value padding, as that distorts the 100% normalization for days with 1 vs 10 assignments.
-          val = weight;
+          // Add baseline to EVERY class.
+          // If all classes have 0 deadlines, they all get 0.2, resulting in equal distribution (100% / N).
+          // If one has a deadline (weight=1), it becomes 1.2 vs 0.2, taking up more space.
+          val = weight + RELATIVE_BASELINE;
         } else {
-          // Absolute mode: Keep original behavior for visual consistency
+          // Absolute mode: Keep original behavior
           val = weight + BASE_VALUE;
         }
 
@@ -133,23 +191,12 @@ export function WorkloadChart({ assignments, semester, onColorChange }: Workload
       return point;
     });
 
-    // Second Pass: Add Free Time
+    // Second Pass: Add Free Time (Only relevant for Absolute Mode or if we want a gap)
     const finalData = initialData.map(point => {
-      const dailyTotal = point._dailyTotal as number;
-
-      if (isRelativeMode) {
-        // In Relative Mode:
-        // If there is ANY work (dailyTotal > 0), the stackOffset="expand" will normalize it to 100%.
-        // We do NOT want Free Time to take up space.
-        // If there is NO work (dailyTotal == 0), we want Free Time to fill 100%.
-        // So we set free_time = 1 (arbitrary positive), so it becomes the only 100% stack.
-        point["free_time"] = dailyTotal > 0 ? 0 : 1;
-      } else {
-        // In Absolute Mode:
-        // We don't really use free_time, but to be safe/consistent we can leave it 0
-        // OR we can calculate it as gap to max? The user didn't ask for change here.
-        point["free_time"] = 0;
-      }
+      // In modified Relative Mode logic, we don't need 'free_time' to fill space 
+      // because the baselines ensure there is always data to stack to 100%.
+      // We can just set it to 0 for both modes to keep the graph clean.
+      point["free_time"] = 0;
 
       return point;
     });
@@ -165,6 +212,7 @@ export function WorkloadChart({ assignments, semester, onColorChange }: Workload
       hasActiveAssignments,
       maxStackHeight: globalMaxDailyTotal,
       sundays,
+      classColorMap, // Return this so we can use it in tooltip
     };
   }, [assignments, semester, isRelativeMode]);
 
@@ -179,7 +227,13 @@ export function WorkloadChart({ assignments, semester, onColorChange }: Workload
       (a) =>
         format(parseISO(a.due_date), "yyyy-MM-dd") === dateStr &&
         a.status !== "completed"
-    );
+    ).sort((a, b) => {
+      // Recharts stacks items in order (0 at bottom, length-1 at top)
+      // We want the tooltip to show Top -> Bottom, so we sort Descending by index
+      const indexA = classNames.findIndex(c => c.name === a.class_name);
+      const indexB = classNames.findIndex(c => c.name === b.class_name);
+      return indexB - indexA;
+    });
 
     // If no real assignments, show a "Quiet Day" tooltip or nothing
     if (assignmentsOnDay.length === 0) {
@@ -203,7 +257,10 @@ export function WorkloadChart({ assignments, semester, onColorChange }: Workload
             <div key={a.id} className="flex items-center gap-3 text-sm">
               <div
                 className="w-2.5 h-2.5 rounded-full shadow-sm ring-1 ring-offset-1 ring-offset-background"
-                style={{ backgroundColor: a.color, borderColor: a.color }}
+                style={{
+                  backgroundColor: classColorMap.get(a.class_name) || a.color,
+                  borderColor: classColorMap.get(a.class_name) || a.color
+                }}
               />
               <div className="flex flex-col">
                 <span className="font-medium leading-none">{a.assignment_name}</span>
@@ -233,40 +290,52 @@ export function WorkloadChart({ assignments, semester, onColorChange }: Workload
   return (
     <Card className="shadow-soft overflow-hidden border-none ring-1 ring-border/50 bg-gradient-to-b from-card to-secondary/10">
       <CardHeader className="pb-4 border-b border-border/40 bg-card/50 backdrop-blur-sm">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-center justify-between mb-2 sm:mb-0">
           <CardTitle className="text-lg font-semibold flex items-center gap-2.5">
             <div className="p-2 bg-primary/10 rounded-lg text-primary">
               <BarChart3 className="w-5 h-5" />
             </div>
             Workload Overview
           </CardTitle>
-          <div className="flex items-center gap-4">
-            {hasActiveAssignments && (
-              <div className="flex items-center gap-2">
-                <div className="flex items-center space-x-2">
-                  <Label htmlFor="relative-mode" className="text-xs font-medium text-muted-foreground">Relative</Label>
-                  <Switch
-                    id="relative-mode"
-                    checked={isRelativeMode}
-                    onCheckedChange={setIsRelativeMode}
-                  />
-                </div>
-                <div className="h-4 w-px bg-border/50 mx-2" />
-                <div className="flex gap-2 flex-wrap justify-end">
-                  {classNames.map(c => (
-                    <div
-                      key={c.name}
-                      className="flex items-center gap-1.5 text-[10px] bg-secondary/50 px-2 py-1 rounded-md border border-border/50 transition-colors"
-                    >
-                      <div className="w-2 h-2 rounded-full shadow-sm" style={{ backgroundColor: c.color }} />
-                      <span className="font-medium opacity-70">{c.name}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+          {hasActiveAssignments && (
+            <div className="flex items-center gap-2 mt-2 sm:mt-0">
+              <Label htmlFor="relative-mode" className="text-xs font-medium text-muted-foreground">
+                Relative
+              </Label>
+              <Switch
+                id="relative-mode"
+                checked={isRelativeMode}
+                onCheckedChange={setIsRelativeMode}
+              />
+            </div>
+          )}
         </div>
+        {hasActiveAssignments && (
+          <div className="flex gap-2 flex-wrap sm:flex-nowrap overflow-x-auto">
+            {classNames.map(c => {
+              const isHidden = hiddenCategories.has(c.name);
+              return (
+                <button
+                  key={c.name}
+                  onClick={() => toggleCategory(c.name)}
+                  className={`flex items-center gap-1.5 text-[10px] px-2 py-1 rounded-md border transition-all cursor-pointer select-none ${isHidden
+                    ? 'bg-secondary/20 border-border/30 opacity-50'
+                    : 'bg-secondary/50 border-border/50 hover:bg-secondary/70'
+                    }`}
+                  title={isHidden ? `Show ${c.name}` : `Hide ${c.name}`}
+                >
+                  <div
+                    className={`w-2 h-2 rounded-full shadow-sm transition-opacity ${isHidden ? 'opacity-30' : ''}`}
+                    style={{ backgroundColor: c.color }}
+                  />
+                  <span className={`font-medium ${isHidden ? 'opacity-50 line-through' : 'opacity-70'}`}>
+                    {c.name}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </CardHeader>
       <CardContent className="p-0">
         {!hasActiveAssignments ? (
@@ -284,7 +353,7 @@ export function WorkloadChart({ assignments, semester, onColorChange }: Workload
           </div>
         ) : (
           <div className="p-4">
-            <div className="h-80 w-full relative group rounded-xl bg-secondary/20 dark:bg-secondary/10 ring-1 ring-inset ring-black/5 dark:ring-white/5 overflow-hidden shadow-inner">
+            <div className="h-64 sm:h-80 w-full relative group rounded-xl bg-secondary/20 dark:bg-secondary/10 ring-1 ring-inset ring-black/5 dark:ring-white/5 overflow-hidden shadow-inner">
               {/* Background Pattern for contrast */}
               <div className="absolute inset-0 opacity-5 bg-[radial-gradient(#000000_1px,transparent_1px)] [background-size:16px_16px] dark:bg-[radial-gradient(#ffffff_1px,transparent_1px)]" />
 
@@ -370,18 +439,20 @@ export function WorkloadChart({ assignments, semester, onColorChange }: Workload
                     }}
                   />
 
-                  {classNames.map(({ name, color }) => (
-                    <Area
-                      key={name}
-                      type="monotone" // Smooth curve
-                      dataKey={name}
-                      stackId="1" // Stack them
-                      stroke={color}
-                      strokeWidth={1.5}
-                      fill={`url(#gradient-${name.replace(/\s+/g, '-')})`}
-                      animationDuration={1500}
-                    />
-                  ))}
+                  {classNames
+                    .filter(({ name }) => !hiddenCategories.has(name))
+                    .map(({ name, color }) => (
+                      <Area
+                        key={name}
+                        type="monotone" // Smooth curve
+                        dataKey={name}
+                        stackId="1" // Stack them
+                        stroke={color}
+                        strokeWidth={1.5}
+                        fill={`url(#gradient-${name.replace(/\s+/g, '-')})`}
+                        animationDuration={1500}
+                      />
+                    ))}
 
                   {isRelativeMode && (
                     <Area
