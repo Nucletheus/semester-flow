@@ -82,7 +82,7 @@ export default function Auth() {
     }
 
     if (view === "signup" && password !== confirmPassword) {
-      setErrors({ res: "Passwords do not match", confirmPassword: "Passwords do not match" });
+      setErrors({ confirmPassword: "Passwords do not match" });
       return false;
     }
 

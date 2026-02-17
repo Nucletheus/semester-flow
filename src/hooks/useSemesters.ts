@@ -112,25 +112,6 @@ export function useSemesters() {
     },
   });
 
-  // Silent update for hidden categories (no toast)
-  const updateHiddenCategories = useMutation({
-    mutationFn: async ({ id, hidden_categories }: { id: string; hidden_categories: string[] }) => {
-      if (!user) throw new Error("Not authenticated");
-
-      const { data, error } = await supabase
-        .from("semesters")
-        .update({ hidden_categories })
-        .eq("id", id)
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["semesters"] });
-    },
-  });
-
   return {
     semesters,
     activeSemester,
@@ -138,6 +119,5 @@ export function useSemesters() {
     createSemester,
     updateSemester,
     deleteSemester,
-    updateHiddenCategories,
   };
 }

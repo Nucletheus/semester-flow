@@ -17,7 +17,7 @@ import { format, parseISO, isPast, isToday } from "date-fns";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export default function Dashboard() {
-  const { activeSemester, isLoading: semestersLoading, updateHiddenCategories } = useSemesters();
+  const { activeSemester, isLoading: semestersLoading } = useSemesters();
   const { assignments, createAssignment, createAssignments, updateAssignment, deleteAssignment, updateClassColor } = useAssignments(
     activeSemester?.id
   );
@@ -83,15 +83,6 @@ export default function Dashboard() {
               assignments={assignments}
               semester={activeSemester}
               onColorChange={(className, newColor) => updateClassColor.mutate({ className, newColor })}
-              hiddenCategories={activeSemester?.hidden_categories ?? []}
-              onHiddenCategoriesChange={(categories) => {
-                if (activeSemester) {
-                  updateHiddenCategories.mutate({
-                    id: activeSemester.id,
-                    hidden_categories: categories
-                  });
-                }
-              }}
             />
 
             {/* Quick Preview of Upcoming Deadlines */}
