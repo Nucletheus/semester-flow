@@ -124,8 +124,11 @@ export default function Auth() {
       }
     } catch (error: any) {
       let message = error.message;
+      const errorCode = error?.code;
       if (error.message.includes("User already registered")) {
         message = "This email is already registered. Try signing in instead.";
+      } else if (errorCode === "email_not_confirmed" || error.message.includes("Email not confirmed")) {
+        message = "Please check your email and click the confirmation link before signing in.";
       } else if (error.message.includes("Invalid login credentials")) {
         message = "Invalid email or password. Please try again.";
       }
