@@ -7,6 +7,14 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Lock, Loader2 } from "lucide-react";
+import { z } from "zod";
+
+const strongPasswordSchema = z.string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(/[A-Z]/, "Must contain at least one uppercase letter")
+    .regex(/[a-z]/, "Must contain at least one lowercase letter")
+    .regex(/[0-9]/, "Must contain at least one number")
+    .regex(/[^A-Za-z0-9]/, "Must contain at least one special character");
 
 export default function UpdatePassword() {
     const [password, setPassword] = useState("");
@@ -24,10 +32,11 @@ export default function UpdatePassword() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (password.length < 6) {
+        const validation = strongPasswordSchema.safeParse(password);
+        if (!validation.success) {
             toast({
                 title: "Error",
-                description: "Password must be at least 6 characters",
+                description: validation.error.errors[0].message,
                 variant: "destructive",
             });
             return;
