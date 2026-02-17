@@ -88,7 +88,6 @@ export function BulkAddDialog({
       type: "Quiz" as const,
       due_date: format(date, "yyyy-MM-dd"),
       color,
-      status: "not started" as const
     }));
 
     onCreate(assignments);

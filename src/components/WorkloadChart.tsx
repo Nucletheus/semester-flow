@@ -114,7 +114,7 @@ export function WorkloadChart({
     if (!semester) return { chartData: [], classNames: [], hasActiveAssignments: false, maxStackHeight: 0, sundays: [], classColorMap: new Map() };
 
     // Filter out completed assignments
-    const activeAssignments = assignments.filter((a) => a.status !== "completed");
+    const activeAssignments = assignments;
     const hasActiveAssignments = activeAssignments.length > 0;
 
     // Add buffer
@@ -225,8 +225,7 @@ export function WorkloadChart({
 
     const assignmentsOnDay = assignments.filter(
       (a) =>
-        format(parseISO(a.due_date), "yyyy-MM-dd") === dateStr &&
-        a.status !== "completed"
+        format(parseISO(a.due_date), "yyyy-MM-dd") === dateStr
     ).sort((a, b) => {
       // Recharts stacks items in order (0 at bottom, length-1 at top)
       // We want the tooltip to show Top -> Bottom, so we sort Descending by index

@@ -10,7 +10,7 @@ export interface Assignment {
   class_name: string;
   assignment_name: string;
   type: "Quiz" | "Exam" | "Lab" | "Essay";
-  status?: "not started" | "in progress" | "completed";
+  
   due_date: string;
   color: string;
   created_at: string;
