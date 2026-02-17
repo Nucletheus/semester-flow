@@ -53,7 +53,7 @@ export default function Deadlines() {
         type: "Quiz", // Default
         due_date: new Date().toISOString(),
         color: "#000000",
-        status: "not started",
+        
       });
       // No need to set lastCreatedId or timer anymore
     } catch (error) {
@@ -65,7 +65,9 @@ export default function Deadlines() {
     return [...new Set(assignments.map(a => a.class_name).filter(Boolean).map(n => n.trim()))].sort();
   }, [assignments]);
 
-  const updateData = (id: string, field: keyof Assignment, value: any) => {
+  const updateData = (id: string, field: keyof Assignment | string, value: any) => {
+    // status is UI-only, not persisted in DB
+    if (field === "status") return;
     updateAssignment.mutate({ id, [field]: value });
   };
 

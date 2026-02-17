@@ -32,7 +32,7 @@ export default function Dashboard() {
 
   // Get next 5 active assignments (including overdue)
   const upcomingAssignments = assignments
-    .filter((a) => a.status !== 'completed')
+    .filter(() => true)
     .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime())
     .slice(0, 5);
 
@@ -156,7 +156,7 @@ export default function Dashboard() {
                 <CardContent className="p-4 text-center">
                   <div className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">Done</div>
                   <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                    {assignments.filter(a => a.status === 'completed').length}
+                    0
                   </div>
                 </CardContent>
               </Card>
@@ -164,7 +164,7 @@ export default function Dashboard() {
                 <CardContent className="p-4 text-center">
                   <div className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">Left</div>
                   <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-                    {assignments.filter(a => a.status !== 'completed').length}
+                    {assignments.length}
                   </div>
                 </CardContent>
               </Card>
