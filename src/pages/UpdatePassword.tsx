@@ -7,17 +7,11 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Lock, Loader2 } from "lucide-react";
-import { z } from "zod";
-
-const strongPasswordSchema = z.string()
-    .min(8, "Password must be at least 8 characters")
-    .regex(/[A-Z]/, "Must contain at least one uppercase letter")
-    .regex(/[a-z]/, "Must contain at least one lowercase letter")
-    .regex(/[0-9]/, "Must contain at least one number")
-    .regex(/[^A-Za-z0-9]/, "Must contain at least one special character");
+import { strongPasswordSchema } from "@/lib/authValidation";
 
 export default function UpdatePassword() {
     const [password, setPassword] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
     const [loading, setLoading] = useState(false);
     const [ready, setReady] = useState(false);
     const navigate = useNavigate();
@@ -31,76 +25,75 @@ export default function UpdatePassword() {
             : window.location.hash;
         const hashParams = new URLSearchParams(hash);
         const searchParams = new URLSearchParams(window.location.search);
+        const accessToken = hashParams.get("access_token") ?? searchParams.get("access_token");
+        const refreshToken = hashParams.get("refresh_token") ?? searchParams.get("refresh_token");
+        const authCode = searchParams.get("code");
         const hasRecoveryParams =
             hashParams.get("type") === "recovery" ||
-            hashParams.has("access_token") ||
-            hashParams.has("refresh_token") ||
             searchParams.get("type") === "recovery" ||
-            searchParams.has("code");
-
-        const accessToken = hashParams.get("access_token");
-        const refreshToken = hashParams.get("refresh_token");
-        const authCode = searchParams.get("code");
-
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-            if (!isMounted) return;
-
-            if (event === "PASSWORD_RECOVERY" || !!session) {
-                setReady(true);
-            }
-        });
+            !!authCode ||
+            (!!accessToken && !!refreshToken);
 
         const validateRecoverySession = async () => {
-            // In some hosted previews, Supabase URL session parsing can be flaky.
-            // Explicitly establish a session from URL params when available.
+            if (!hasRecoveryParams) {
+                toast({
+                    title: "Invalid reset link",
+                    description: "This reset link is invalid or has expired. Request a new one.",
+                    variant: "destructive",
+                });
+                navigate("/auth", { replace: true });
+                return;
+            }
+
             if (accessToken && refreshToken) {
                 const { error } = await supabase.auth.setSession({
                     access_token: accessToken,
                     refresh_token: refreshToken,
                 });
-                if (!isMounted) return;
-                if (!error) {
-                    setReady(true);
+                if (error) {
+                    if (!isMounted) return;
+                    toast({
+                        title: "Invalid reset link",
+                        description: "This reset link is invalid or has expired. Request a new one.",
+                        variant: "destructive",
+                    });
+                    navigate("/auth", { replace: true });
                     return;
                 }
             } else if (authCode) {
                 const { error } = await supabase.auth.exchangeCodeForSession(authCode);
-                if (!isMounted) return;
-                if (!error) {
-                    setReady(true);
+                if (error) {
+                    if (!isMounted) return;
+                    toast({
+                        title: "Invalid reset link",
+                        description: "This reset link is invalid or has expired. Request a new one.",
+                        variant: "destructive",
+                    });
+                    navigate("/auth", { replace: true });
                     return;
                 }
             }
 
-            // Session establishment can lag behind routing in hosted environments.
-            for (let attempt = 0; attempt < 10; attempt++) {
-                const { data: { session } } = await supabase.auth.getSession();
-                if (!isMounted) return;
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!isMounted) return;
 
-                if (session) {
-                    setReady(true);
-                    return;
-                }
-
-                await new Promise((resolve) => window.setTimeout(resolve, 500));
-                if (!isMounted) return;
-            }
-
-            if (hasRecoveryParams) {
+            if (!session?.user) {
                 toast({
                     title: "Invalid reset link",
-                    description: "This reset link is expired or invalid. Please request a new one.",
+                    description: "This reset link is invalid or has expired. Request a new one.",
                     variant: "destructive",
                 });
+                navigate("/auth", { replace: true });
+                return;
             }
-            navigate("/auth");
+
+            setReady(true);
         };
 
         validateRecoverySession();
 
         return () => {
             isMounted = false;
-            subscription.unsubscribe();
         };
     }, [navigate, toast]);
 
@@ -116,6 +109,15 @@ export default function UpdatePassword() {
             return;
         }
 
+        if (password !== confirmPassword) {
+            toast({
+                title: "Error",
+                description: "Passwords do not match.",
+                variant: "destructive",
+            });
+            return;
+        }
+
         setLoading(true);
 
         try {
@@ -126,11 +128,15 @@ export default function UpdatePassword() {
                 title: "Password updated",
                 description: "Your password has been successfully updated.",
             });
-            navigate("/");
+            const { data: { session } } = await supabase.auth.getSession();
+            navigate(session?.user ? "/" : "/auth", { replace: true });
         } catch (error: any) {
+            const message = error?.code === "otp_expired" || String(error?.message || "").toLowerCase().includes("expired")
+                ? "This reset session has expired. Request a new reset link."
+                : error.message;
             toast({
                 title: "Error",
-                description: error.message,
+                description: message,
                 variant: "destructive",
             });
         } finally {
@@ -172,6 +178,16 @@ export default function UpdatePassword() {
                                 placeholder="••••••••"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="confirmPassword">Confirm Password</Label>
+                            <Input
+                                id="confirmPassword"
+                                type="password"
+                                placeholder="••••••••"
+                                value={confirmPassword}
+                                onChange={(e) => setConfirmPassword(e.target.value)}
                             />
                         </div>
                         <Button type="submit" className="w-full" disabled={loading}>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -9,24 +9,17 @@ import { useToast } from "@/hooks/use-toast";
 import { BookOpen, Loader2, ArrowLeft, UserPlus } from "lucide-react";
 import { z } from "zod";
 import { cn } from "@/lib/utils";
+import { strongPasswordSchema } from "@/lib/authValidation";
 
-// Schema for Login (Simple validation for grandfathered users)
+// Schema for Login
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
   password: z.string().min(1, "Password is required"),
 });
 
-// Schema for New Signups (Strong security enforcement)
-const signupSchema = loginSchema.extend({
-  password: z.string()
-    .min(8, "Password must be at least 8 characters")
-    .regex(/[A-Z]/, "Must contain at least one uppercase letter")
-    .regex(/[a-z]/, "Must contain at least one lowercase letter")
-    .regex(/[0-9]/, "Must contain at least one number")
-    .regex(/[^A-Za-z0-9]/, "Must contain at least one special character"),
-});
+const signupSchema = loginSchema.extend({ password: strongPasswordSchema });
 
-type AuthView = "login" | "signup" | "recovery";
+type AuthView = "login" | "signup" | "forgot";
 
 export default function Auth() {
   const [view, setView] = useState<AuthView>("login");
@@ -46,31 +39,42 @@ export default function Auth() {
     });
   };
 
+  const hasRecoveryParams = useMemo(() => {
+    const hash = window.location.hash.startsWith("#")
+      ? window.location.hash.slice(1)
+      : window.location.hash;
+    const hashParams = new URLSearchParams(hash);
+    const searchParams = new URLSearchParams(window.location.search);
+
+    return (
+      hashParams.get("type") === "recovery" ||
+      hashParams.has("access_token") ||
+      hashParams.has("refresh_token") ||
+      searchParams.get("type") === "recovery" ||
+      searchParams.has("code")
+    );
+  }, []);
+
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "PASSWORD_RECOVERY") {
-        navigate("/update-password");
+    const bootstrapAuth = async () => {
+      if (hasRecoveryParams) {
+        navigate(`/update-password${window.location.search}${window.location.hash}`, { replace: true });
         return;
       }
-      if (session?.user) {
-        navigate("/");
-      }
-    });
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+      const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
-        navigate("/");
+        navigate("/", { replace: true });
       }
-    });
+    };
 
-    return () => subscription.unsubscribe();
-  }, [navigate]);
+    bootstrapAuth();
+  }, [hasRecoveryParams, navigate]);
 
   const validateForm = () => {
     setErrors({});
 
-    // Recovery only needs email
-    if (view === "recovery") {
+    if (view === "forgot") {
       const emailValidation = z.string().email().safeParse(email);
       if (!emailValidation.success) {
         const message = "Please enter a valid email address";
@@ -120,17 +124,27 @@ export default function Auth() {
         if (error) throw error;
         toast({ title: "Welcome back!", description: "You've successfully signed in." });
       } else if (view === "signup") {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: { emailRedirectTo: appOrigin },
         });
         if (error) throw error;
+
+        if (data.session) {
+          toast({
+            title: "Account created",
+            description: "You're signed in and ready to go.",
+          });
+          navigate("/", { replace: true });
+          return;
+        }
+
         toast({
           title: "Account created!",
-          description: "Please check your email to confirm your account before signing in. If you don't see it, check spam or promotions."
+          description: "Check your email for verification. You can sign in as soon as your project auth settings allow it.",
         });
-      } else if (view === "recovery") {
+      } else if (view === "forgot") {
         const recoveryEmail = email.trim().toLowerCase();
         const { error } = await supabase.auth.resetPasswordForEmail(recoveryEmail, {
           redirectTo: `${appOrigin}/update-password`,
@@ -141,6 +155,8 @@ export default function Auth() {
           description: `If an account exists for ${recoveryEmail}, a password reset link has been sent.`,
         });
         setView("login");
+        setPassword("");
+        setConfirmPassword("");
       }
     } catch (error: any) {
       let message = error.message;
@@ -153,8 +169,8 @@ export default function Auth() {
         message = "Invalid email or password. Please try again.";
       } else if (errorCode === "over_email_send_rate_limit" || error.message.includes("rate limit")) {
         message = "Too many reset emails were requested. Please wait and try again.";
-      } else if (errorCode === "otp_expired" || error.message.includes("expired")) {
-        message = "This reset link is no longer valid. Please request a new one.";
+      } else if (errorCode === "otp_expired" || error.message.toLowerCase().includes("expired")) {
+        message = "This reset link has expired. Please request a new one.";
       }
       toast({ title: "Error", description: message, variant: "destructive" });
     } finally {
@@ -162,8 +178,8 @@ export default function Auth() {
     }
   };
 
-  const handleEnterRecovery = () => {
-    setView("recovery");
+  const handleEnterForgot = () => {
+    setView("forgot");
     setErrors({});
     setPassword("");
     setConfirmPassword("");
@@ -177,7 +193,7 @@ export default function Auth() {
     switch (view) {
       case "login": return "Welcome back";
       case "signup": return "Create your account";
-      case "recovery": return "Reset Password";
+      case "forgot": return "Reset password";
     }
   };
 
@@ -185,7 +201,7 @@ export default function Auth() {
     switch (view) {
       case "login": return "Sign in to track your academic workload";
       case "signup": return "Start organizing your semester today";
-      case "recovery": return "Enter your email to receive a reset link";
+      case "forgot": return "Enter your email to receive a reset link";
     }
   };
 
@@ -229,14 +245,14 @@ export default function Auth() {
               )}
             </div>
 
-            {view !== "recovery" && (
+            {view !== "forgot" && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password">Password</Label>
                   {view === "login" && (
                     <button
                       type="button"
-                      onClick={handleEnterRecovery}
+                      onClick={handleEnterForgot}
                       className="text-xs text-muted-foreground hover:text-primary transition-colors"
                     >
                       Forgot password?
@@ -276,12 +292,12 @@ export default function Auth() {
 
             <Button type="submit" className="w-full" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {view === "login" ? "Sign in" : view === "signup" ? "Create account" : "Send Reset Link"}
+              {view === "login" ? "Sign in" : view === "signup" ? "Create account" : "Send reset link"}
             </Button>
           </form>
 
           <div className="mt-6 text-center space-y-2">
-            {view === "recovery" ? (
+            {view === "forgot" ? (
               <button
                 type="button"
                 onClick={() => setView("login")}
