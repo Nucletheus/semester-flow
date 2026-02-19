@@ -27,40 +27,75 @@ export default function UpdatePassword() {
         let isMounted = true;
         let timeoutId: ReturnType<typeof setTimeout>;
 
+        const hash = window.location.hash.startsWith("#")
+            ? window.location.hash.slice(1)
+            : window.location.hash;
+        const hashParams = new URLSearchParams(hash);
+        const searchParams = new URLSearchParams(window.location.search);
         const hasRecoveryParams =
-            window.location.hash.includes("type=recovery") ||
-            window.location.hash.includes("access_token=") ||
-            new URLSearchParams(window.location.search).has("code");
+            hashParams.get("type") === "recovery" ||
+            hashParams.has("access_token") ||
+            hashParams.has("refresh_token") ||
+            searchParams.get("type") === "recovery" ||
+            searchParams.has("code");
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
             if (!isMounted) return;
 
-            if (event === "PASSWORD_RECOVERY" || (event === "SIGNED_IN" && session)) {
+            if (event === "PASSWORD_RECOVERY" || !!session) {
                 clearTimeout(timeoutId);
                 setReady(true);
             }
         });
 
-        if (hasRecoveryParams) {
-            timeoutId = setTimeout(() => {
-                if (!isMounted) return;
-                toast({
-                    title: "Invalid reset link",
-                    description: "This reset link is expired or invalid. Please request a new one.",
-                    variant: "destructive",
-                });
+        const validateRecoverySession = async () => {
+            // First check catches cases where session is already set
+            const { data: { session: initialSession } } = await supabase.auth.getSession();
+            if (!isMounted) return;
+            if (initialSession) {
+                setReady(true);
+                return;
+            }
+
+            if (!hasRecoveryParams) {
                 navigate("/auth");
-            }, 5000);
-        } else {
-            supabase.auth.getSession().then(({ data: { session } }) => {
+                return;
+            }
+
+            // Recovery redirects can race with client initialization; poll briefly.
+            for (let attempt = 0; attempt < 10; attempt++) {
+                await new Promise((resolve) => window.setTimeout(resolve, 500));
                 if (!isMounted) return;
+
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!isMounted) return;
+
                 if (session) {
+                    clearTimeout(timeoutId);
                     setReady(true);
-                } else {
-                    navigate("/auth");
+                    return;
                 }
+            }
+
+            toast({
+                title: "Invalid reset link",
+                description: "This reset link is expired or invalid. Please request a new one.",
+                variant: "destructive",
             });
-        }
+            navigate("/auth");
+        };
+
+        timeoutId = setTimeout(() => {
+            if (!isMounted) return;
+            toast({
+                title: "Invalid reset link",
+                description: "This reset link is expired or invalid. Please request a new one.",
+                variant: "destructive",
+            });
+            navigate("/auth");
+        }, 8000);
+
+        validateRecoverySession();
 
         return () => {
             isMounted = false;
