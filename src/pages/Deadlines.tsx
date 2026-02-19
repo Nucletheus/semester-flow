@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { format, parseISO } from "date-fns";
 import { createPortal } from "react-dom";
 import { Plus, Layers, Trash2 } from "lucide-react";
@@ -43,10 +43,10 @@ export default function Deadlines() {
     localStorage.setItem("deadlines-compact", String(isCompact));
   }, [isCompact]);
 
-  const handleCreate = async () => {
+  const handleCreate = useCallback(async () => {
     if (!activeSemester) return;
     try {
-      const newAssignment = await createAssignment.mutateAsync({
+      await createAssignment.mutateAsync({
         semester_id: activeSemester.id,
         class_name: "",
         assignment_name: "",
@@ -55,25 +55,24 @@ export default function Deadlines() {
         color: "#000000",
         
       });
-      // No need to set lastCreatedId or timer anymore
     } catch (error) {
       console.error("Failed to create assignment", error);
     }
-  };
+  }, [activeSemester, createAssignment]);
 
   const uniqueClassNames = useMemo(() => {
     return [...new Set(assignments.map(a => a.class_name).filter(Boolean).map(n => n.trim()))].sort();
   }, [assignments]);
 
-  const updateData = (id: string, field: keyof Assignment | string, value: any) => {
+  const updateData = useCallback((id: string, field: keyof Assignment | string, value: any) => {
     updateAssignment.mutate({ id, [field]: value });
-  };
+  }, [updateAssignment]);
 
-  const deleteData = (id: string) => {
+  const deleteData = useCallback((id: string) => {
     deleteAssignment.mutate(id);
-  };
+  }, [deleteAssignment]);
 
-  const handleDeleteSelected = () => {
+  const handleDeleteSelected = useCallback(() => {
     const selectedIds = Object.keys(rowSelection);
     if (selectedIds.length === 0) return;
 
@@ -82,7 +81,7 @@ export default function Deadlines() {
         setRowSelection({});
       }
     });
-  };
+  }, [deleteAssignments, rowSelection]);
 
   const classOptions = useMemo(() => {
     const map = new Map();
@@ -91,7 +90,7 @@ export default function Deadlines() {
         map.set(a.class_name, {
           label: a.class_name,
           value: a.class_name,
-          color: getClassThemeColor(a.class_name, uniqueClassNames)
+          color: getClassThemeColor(a.class_name, uniqueClassNames, true)
         });
       }
     });
@@ -102,9 +101,30 @@ export default function Deadlines() {
     return assignments.map(a => ({
       ...a,
       status: a.status ?? "not started",
-      color: getClassThemeVar(a.class_name, uniqueClassNames),
+      color: getClassThemeVar(a.class_name, uniqueClassNames, true),
     }));
   }, [assignments, uniqueClassNames]);
+
+  const semesterRange = useMemo(
+    () => ({
+      semesterStart: activeSemester ? parseISO(activeSemester.start_date) : undefined,
+      semesterEnd: activeSemester ? parseISO(activeSemester.end_date) : undefined,
+    }),
+    [activeSemester]
+  );
+
+  const tableMeta = useMemo(
+    () => ({
+      updateData,
+      deleteData,
+      classOptions,
+      onCreateRow: handleCreate,
+      isCompact,
+      semesterStart: semesterRange.semesterStart,
+      semesterEnd: semesterRange.semesterEnd,
+    }),
+    [updateData, deleteData, classOptions, handleCreate, isCompact, semesterRange.semesterEnd, semesterRange.semesterStart]
+  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -138,15 +158,7 @@ export default function Deadlines() {
               setSorting={setSorting}
               getRowId={(row) => row.id}
               isCompact={isCompact}
-              meta={{
-                updateData,
-                deleteData,
-                classOptions,
-                onCreateRow: handleCreate,
-                isCompact,
-                semesterStart: activeSemester ? parseISO(activeSemester.start_date) : undefined,
-                semesterEnd: activeSemester ? parseISO(activeSemester.end_date) : undefined
-              }}
+              meta={tableMeta}
             />
           </div>
         )}

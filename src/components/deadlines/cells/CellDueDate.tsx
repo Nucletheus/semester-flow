@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { memo, useEffect, useMemo, useState } from "react"
 import { format } from "date-fns"
 import { Calendar as CalendarIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -19,11 +19,17 @@ interface CellDueDateProps {
     maxDate?: Date;
 }
 
-export function CellDueDate({ initialValue, onUpdate, onEnter, isCompact = false, minDate, maxDate }: CellDueDateProps) {
-    const [date, setDate] = useState<Date | undefined>(
-        initialValue ? new Date(initialValue) : undefined
+function CellDueDateBase({ initialValue, onUpdate, onEnter, isCompact = false, minDate, maxDate }: CellDueDateProps) {
+    const initialDate = useMemo(
+        () => (initialValue ? new Date(initialValue) : undefined),
+        [initialValue]
     )
+    const [date, setDate] = useState<Date | undefined>(initialDate)
     const [open, setOpen] = useState(false)
+
+    useEffect(() => {
+        setDate(initialDate)
+    }, [initialDate])
 
     const handleSelect = (newDate: Date | undefined) => {
         setDate(newDate)
@@ -75,3 +81,5 @@ export function CellDueDate({ initialValue, onUpdate, onEnter, isCompact = false
         </Popover>
     )
 }
+
+export const CellDueDate = memo(CellDueDateBase)

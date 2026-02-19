@@ -19,9 +19,10 @@ export function useSemesters() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const semestersQueryKey = ["semesters", user?.id] as const;
 
   const { data: semesters = [], isLoading } = useQuery({
-    queryKey: ["semesters", user?.id],
+    queryKey: semestersQueryKey,
     queryFn: async () => {
       if (!user) return [];
       const { data, error } = await supabase
@@ -61,7 +62,7 @@ export function useSemesters() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["semesters"] });
+      queryClient.invalidateQueries({ queryKey: semestersQueryKey });
       toast({ title: "Semester created", description: "Your new semester has been added." });
     },
     onError: (error: any) => {
@@ -90,7 +91,7 @@ export function useSemesters() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["semesters"] });
+      queryClient.invalidateQueries({ queryKey: semestersQueryKey });
       toast({ title: "Semester updated" });
     },
     onError: (error: any) => {
@@ -104,7 +105,7 @@ export function useSemesters() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["semesters"] });
+      queryClient.invalidateQueries({ queryKey: semestersQueryKey });
       toast({ title: "Semester deleted" });
     },
     onError: (error: any) => {

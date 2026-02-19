@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
+import { memo } from "react"
 
 interface CellStatusProps {
     initialValue: string
@@ -14,7 +15,7 @@ interface CellStatusProps {
     isCompact?: boolean;
 }
 
-export function CellStatus({ initialValue, onUpdate, isCompact = false }: CellStatusProps) {
+function CellStatusBase({ initialValue, onUpdate, isCompact = false }: CellStatusProps) {
     const validValues = ["not started", "in progress", "completed"]
     const displayValue = validValues.includes(initialValue) ? initialValue : "not started"
 
@@ -69,3 +70,5 @@ export function CellStatus({ initialValue, onUpdate, isCompact = false }: CellSt
         </Select>
     )
 }
+
+export const CellStatus = memo(CellStatusBase)

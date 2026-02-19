@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { memo, useEffect, useState } from "react"
 import { Input } from "@/components/ui/input"
 
 import { cn } from "@/lib/utils"
@@ -9,7 +9,7 @@ interface CellDeadlineProps {
     isCompact?: boolean
 }
 
-export function CellDeadline({ initialValue, onUpdate, isCompact = false }: CellDeadlineProps) {
+function CellDeadlineBase({ initialValue, onUpdate, isCompact = false }: CellDeadlineProps) {
     const [value, setValue] = useState(initialValue)
 
     useEffect(() => {
@@ -34,3 +34,5 @@ export function CellDeadline({ initialValue, onUpdate, isCompact = false }: Cell
         />
     )
 }
+
+export const CellDeadline = memo(CellDeadlineBase)

@@ -18,7 +18,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 
 export default function Dashboard() {
   const { activeSemester, isLoading: semestersLoading } = useSemesters();
-  const { assignments, createAssignment, createAssignments, updateAssignment, deleteAssignment, updateClassColor } = useAssignments(
+  const { assignments, createAssignment, createAssignments, updateClassColor } = useAssignments(
     activeSemester?.id
   );
 
@@ -36,9 +36,13 @@ export default function Dashboard() {
   );
 
   // Get next 5 active assignments (including overdue)
-  const upcomingAssignments = activeAssignments
-    .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime())
-    .slice(0, 5);
+  const upcomingAssignments = useMemo(
+    () =>
+      [...activeAssignments]
+        .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime())
+        .slice(0, 5),
+    [activeAssignments]
+  );
 
 
   const uniqueClassNames = useMemo(() => {
@@ -52,7 +56,7 @@ export default function Dashboard() {
         map.set(a.class_name, {
           label: a.class_name,
           value: a.class_name,
-          color: getClassThemeColor(a.class_name, uniqueClassNames)
+          color: getClassThemeColor(a.class_name, uniqueClassNames, true)
         });
       }
     });
@@ -128,7 +132,7 @@ export default function Dashboard() {
                         <div className="flex items-center gap-3 min-w-0">
                           <div
                             className="w-1 h-8 rounded-full flex-shrink-0"
-                            style={{ backgroundColor: getClassThemeColor(assignment.class_name, uniqueClassNames) }}
+                            style={{ backgroundColor: getClassThemeColor(assignment.class_name, uniqueClassNames, true) }}
                           />
                           <div className="min-w-0">
                             <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">

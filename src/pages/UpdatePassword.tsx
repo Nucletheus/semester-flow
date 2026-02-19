@@ -10,43 +10,40 @@ import { Lock, Loader2 } from "lucide-react";
 import { strongPasswordSchema } from "@/lib/authValidation";
 import { getAuthErrorMessage } from "@/lib/authErrors";
 import { PasswordRequirements } from "@/components/PasswordRequirements";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function UpdatePassword() {
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [loading, setLoading] = useState(false);
-    const [checkingSession, setCheckingSession] = useState(true);
     const [formError, setFormError] = useState<string | null>(null);
     const [formSuccess, setFormSuccess] = useState<string | null>(null);
     const navigate = useNavigate();
     const { toast } = useToast();
+    const { user, loading: authLoading } = useAuth();
 
     useEffect(() => {
-        let isMounted = true;
+        if (!authLoading && !user) {
+            toast({
+                title: "Authentication required",
+                description: "Please sign in or verify your email code to update your password.",
+                variant: "destructive",
+            });
+            navigate("/auth", { replace: true });
+        }
+    }, [authLoading, navigate, toast, user]);
 
-        const checkSession = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!isMounted) return;
+    if (authLoading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-background px-4">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+        );
+    }
 
-            if (!session?.user) {
-                toast({
-                    title: "Authentication required",
-                    description: "Please sign in or verify your email code to update your password.",
-                    variant: "destructive",
-                });
-                navigate("/auth", { replace: true });
-                return;
-            }
-
-            setCheckingSession(false);
-        };
-
-        checkSession();
-
-        return () => {
-            isMounted = false;
-        };
-    }, [navigate, toast]);
+    if (!user) {
+        return null;
+    }
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -98,14 +95,6 @@ export default function UpdatePassword() {
             setLoading(false);
         }
     };
-
-    if (checkingSession) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-background px-4">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            </div>
-        );
-    }
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-background px-4">

@@ -36,9 +36,18 @@ export function ClassPicker({ value, onChange, options, className }: ClassPicker
     const [searchValue, setSearchValue] = React.useState("")
     const containerRef = React.useRef<HTMLDivElement>(null)
 
-    const filteredOptions = options.filter(option =>
-        option.label.toLowerCase().includes(searchValue.toLowerCase())
+    const normalizedSearchValue = searchValue.toLowerCase();
+    const filteredOptions = React.useMemo(
+        () =>
+            options.filter((option) =>
+                option.label.toLowerCase().includes(normalizedSearchValue)
+            ),
+        [options, normalizedSearchValue]
     )
+    const selectedOption = React.useMemo(
+        () => options.find((option) => option.value === value),
+        [options, value]
+    );
 
     const handleSelect = (option: ClassOption) => {
         onChange(option.value, option.color)
@@ -103,7 +112,7 @@ export function ClassPicker({ value, onChange, options, className }: ClassPicker
                     <div className="flex items-center gap-2">
                         <div
                             className="w-3 h-3 rounded-full border shrink-0"
-                            style={{ backgroundColor: options.find(o => o.value === value)?.color || getRandomColor() }}
+                            style={{ backgroundColor: selectedOption?.color || getRandomColor() }}
                         />
                         <span className="truncate">{value}</span>
                     </div>

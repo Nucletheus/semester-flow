@@ -23,9 +23,10 @@ export const useAssignments = (semesterId?: string) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const assignmentsQueryKey = ["assignments", user?.id, semesterId] as const;
 
   const { data: assignments = [], isLoading } = useQuery({
-    queryKey: ["assignments", user?.id, semesterId],
+    queryKey: assignmentsQueryKey,
     queryFn: async () => {
       if (!user || !semesterId) return [];
       const { data, error } = await supabase
@@ -51,7 +52,7 @@ export const useAssignments = (semesterId?: string) => {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["assignments"] });
+      queryClient.invalidateQueries({ queryKey: assignmentsQueryKey });
       toast({ title: "Assignment added", description: "Your deadline has been saved." });
     },
     onError: (error: any) => {
@@ -71,7 +72,7 @@ export const useAssignments = (semesterId?: string) => {
       return data;
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["assignments"] });
+      queryClient.invalidateQueries({ queryKey: assignmentsQueryKey });
       toast({ title: "Assignments added", description: `Successfully created ${data?.length} deadlines.` });
     },
     onError: (error: any) => {
@@ -91,7 +92,7 @@ export const useAssignments = (semesterId?: string) => {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["assignments"] });
+      queryClient.invalidateQueries({ queryKey: assignmentsQueryKey });
       toast({ title: "Assignment updated" });
     },
     onError: (error: any) => {
@@ -112,7 +113,7 @@ export const useAssignments = (semesterId?: string) => {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["assignments"] });
+      queryClient.invalidateQueries({ queryKey: assignmentsQueryKey });
       toast({ title: "Class color updated" });
     },
     onError: (error: any) => {
@@ -126,7 +127,7 @@ export const useAssignments = (semesterId?: string) => {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["assignments"] });
+      queryClient.invalidateQueries({ queryKey: assignmentsQueryKey });
       toast({ title: "Assignment deleted" });
     },
     onError: (error: any) => {
@@ -140,7 +141,7 @@ export const useAssignments = (semesterId?: string) => {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["assignments"] });
+      queryClient.invalidateQueries({ queryKey: assignmentsQueryKey });
       toast({ title: "Assignments deleted" });
     },
     onError: (error: any) => {

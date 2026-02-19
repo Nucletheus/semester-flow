@@ -19,11 +19,11 @@ export const THEME_CLASS_VARS = [
  * Example: "var(--theme-color-1)"
  * This is useful if you need to construct an HSL string with alpha, e.g. `hsl(var(--theme-color-1) / 0.5)`
  */
-export function getClassThemeVar(className: string, allClassNames: string[]): string {
+export function getClassThemeVar(className: string, allClassNames: string[], assumeSortedUnique = false): string {
     if (!className) return THEME_CLASS_VARS[0];
 
-    // Ensure we have a sorted list for consistent comparison
-    const sortedClasses = [...new Set(allClassNames)].sort();
+    // Callers can pass a pre-sorted unique list to avoid repeated allocations.
+    const sortedClasses = assumeSortedUnique ? allClassNames : [...new Set(allClassNames)].sort();
     const index = sortedClasses.indexOf(className);
 
     if (index === -1) {
@@ -39,7 +39,7 @@ export function getClassThemeVar(className: string, allClassNames: string[]): st
  * Returns the ready-to-use CSS HSL color string.
  * Example: "hsl(var(--theme-color-1))"
  */
-export function getClassThemeColor(className: string, allClassNames: string[]): string {
-    const colorVar = getClassThemeVar(className, allClassNames);
+export function getClassThemeColor(className: string, allClassNames: string[], assumeSortedUnique = false): string {
+    const colorVar = getClassThemeVar(className, allClassNames, assumeSortedUnique);
     return `hsl(${colorVar})`;
 }

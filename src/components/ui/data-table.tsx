@@ -17,7 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { useState } from "react"
+import { useMemo, useState } from "react"
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
@@ -50,6 +50,32 @@ export function DataTable<TData, TValue>({
 
   const sorting = controlledSorting ?? internalSorting
   const setSorting = setControlledSorting ?? setInternalSorting
+
+  const rowAppearanceByOriginal = useMemo(() => {
+    const map = new WeakMap<object, { isCompleted: boolean; style: React.CSSProperties }>()
+    data.forEach((row) => {
+      if (!row || typeof row !== "object") return
+      const typedRow = row as any
+      const status = typedRow.status
+      const isCompleted = status === "completed"
+      const color = typedRow.color
+      const usesThemeVar = typeof color === "string" && color.startsWith("var(")
+
+      map.set(row as object, {
+        isCompleted,
+        style: {
+          backgroundColor: usesThemeVar
+            ? `hsl(${color} / 0.1)`
+            : color ? `${color}33` : undefined,
+          borderLeft: usesThemeVar
+            ? `${isCompact ? "3px" : "4px"} solid hsl(${color})`
+            : color ? `${isCompact ? "3px" : "4px"} solid ${color}` : undefined,
+          textDecoration: isCompleted ? "line-through" : undefined,
+        },
+      })
+    })
+    return map
+  }, [data, isCompact])
 
   const table = useReactTable({
     data,
@@ -95,23 +121,15 @@ export function DataTable<TData, TValue>({
         <TableBody>
           {table.getRowModel().rows?.length ? (
             table.getRowModel().rows.map((row) => {
-              const status = (row.original as any).status;
-              const isCompleted = status === "completed";
+              const rowAppearance = rowAppearanceByOriginal.get(row.original as object)
+              const isCompleted = rowAppearance?.isCompleted ?? false
 
               return (
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
                   className={isCompleted ? "opacity-60" : undefined}
-                  style={{
-                    backgroundColor: (row.original as any).color?.startsWith('var(')
-                      ? `hsl(${(row.original as any).color} / 0.1)`
-                      : (row.original as any).color ? `${(row.original as any).color}33` : undefined,
-                    borderLeft: (row.original as any).color?.startsWith('var(')
-                      ? `${isCompact ? '3px' : '4px'} solid hsl(${(row.original as any).color})`
-                      : (row.original as any).color ? `${isCompact ? '3px' : '4px'} solid ${(row.original as any).color}` : undefined,
-                    textDecoration: isCompleted ? "line-through" : undefined
-                  }}
+                  style={rowAppearance?.style}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id} className={isCompact ? "py-0.5 px-1.5 h-7" : "py-1 px-2 h-8"}>

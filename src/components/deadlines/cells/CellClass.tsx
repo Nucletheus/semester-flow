@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { memo, useEffect, useMemo, useState } from "react"
 import { Check, ChevronsUpDown, Plus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -29,7 +29,7 @@ interface CellClassProps {
     isCompact?: boolean;
 }
 
-export function CellClass({ initialValue, onUpdate, options = [], autoFocus = false, isCompact = false }: CellClassProps) {
+function CellClassBase({ initialValue, onUpdate, options = [], autoFocus = false, isCompact = false }: CellClassProps) {
     const [open, setOpen] = useState(false)
     const [searchValue, setSearchValue] = useState("")
 
@@ -41,7 +41,14 @@ export function CellClass({ initialValue, onUpdate, options = [], autoFocus = fa
     }, [autoFocus]);
 
     // Deduplicate options based on label just in case
-    const uniqueOptions = Array.from(new Map(options.map(item => [item.label, item])).values());
+    const uniqueOptions = useMemo(
+        () => Array.from(new Map(options.map(item => [item.label, item])).values()),
+        [options]
+    );
+    const selectedColor = useMemo(
+        () => options.find((option) => option.label === initialValue)?.color || "transparent",
+        [initialValue, options]
+    );
 
     const handleSelect = (option: ClassOption) => {
         onUpdate(option.label, option.color)
@@ -113,7 +120,7 @@ export function CellClass({ initialValue, onUpdate, options = [], autoFocus = fa
                         {initialValue && (
                             <div
                                 className="w-2 h-2 rounded-full shrink-0"
-                                style={{ backgroundColor: options.find(o => o.label === initialValue)?.color || "transparent" }}
+                                style={{ backgroundColor: selectedColor }}
                             />
                         )}
                         <span className="truncate">{initialValue || "Select class..."}</span>
@@ -171,3 +178,5 @@ export function CellClass({ initialValue, onUpdate, options = [], autoFocus = fa
         </Popover>
     )
 }
+
+export const CellClass = memo(CellClassBase)

@@ -1,7 +1,6 @@
 
 import {
     BookOpen,
-    Calendar,
     LayoutDashboard,
     LogOut,
     Settings,
@@ -39,7 +38,7 @@ import {
     DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { SemesterSettings } from "@/components/SemesterSettings"
 import { ChangePasswordDialog } from "@/components/ChangePasswordDialog"
 import {
@@ -68,16 +67,16 @@ export function AppSidebar() {
 
     const initials = user?.email?.slice(0, 2).toUpperCase() || "U"
 
-    const handleSignOut = async () => {
+    const handleSignOut = useCallback(async () => {
         await signOut()
         // Defensive cleanup in case a dropdown/dialog layer leaves the body interaction-locked.
         document.body.style.removeProperty("pointer-events")
         document.body.style.removeProperty("overflow")
         document.body.removeAttribute("data-scroll-locked")
         navigate("/auth", { replace: true })
-    }
+    }, [navigate, signOut])
 
-    const handleDeleteAccount = async () => {
+    const handleDeleteAccount = useCallback(async () => {
         try {
             if (!user?.id) return;
             // @ts-ignore
@@ -87,9 +86,9 @@ export function AppSidebar() {
         } catch (error) {
             console.error('Error deleting account:', error);
         }
-    };
+    }, [handleSignOut, user?.id]);
 
-    const menuItems = [
+    const menuItems = useMemo(() => [
         {
             title: "Dashboard",
             url: "/",
@@ -100,23 +99,23 @@ export function AppSidebar() {
             url: "/deadlines",
             icon: ListTodo,
         },
-    ]
+    ], [])
 
-    const themes: { value: Theme; label: string; color: string }[] = [
+    const themes: { value: Theme; label: string; color: string }[] = useMemo(() => [
         { value: "tropical", label: "Tropical", color: "bg-purple-600" },
         { value: "ocean", label: "Ocean", color: "bg-cyan-600" },
         { value: "forest", label: "Forest", color: "bg-emerald-600" },
         { value: "sunset", label: "Sunset", color: "bg-orange-500" },
         { value: "nebula", label: "Nebula", color: "bg-violet-600" },
-    ];
+    ], []);
 
-    const closeSidebarAfterNavigation = () => {
+    const closeSidebarAfterNavigation = useCallback(() => {
         if (isMobile) {
             setOpenMobile(false)
             return
         }
         setOpen(false)
-    }
+    }, [isMobile, setOpen, setOpenMobile])
 
     return (
         <>

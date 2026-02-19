@@ -10,7 +10,7 @@ import {
   ReferenceLine,
   ReferenceArea,
 } from "recharts";
-import { format, eachDayOfInterval, parseISO, isSameDay, startOfDay, addDays, subDays, differenceInCalendarDays, isSunday } from "date-fns";
+import { format, eachDayOfInterval, parseISO, startOfDay, addDays, subDays, isSunday } from "date-fns";
 import { Assignment } from "@/hooks/useAssignments";
 import { Semester } from "@/hooks/useSemesters";
 import { getClassThemeColor } from "@/lib/themeColors";
@@ -51,6 +51,18 @@ export function WorkloadChart({
   const activeAssignments = useMemo(
     () => assignments.filter((assignment) => assignment.status !== "completed"),
     [assignments]
+  );
+  const parsedActiveAssignments = useMemo(
+    () =>
+      activeAssignments.map((assignment) => {
+        const dueDate = parseISO(assignment.due_date);
+        return {
+          ...assignment,
+          dueDate,
+          dueDateKey: format(dueDate, "yyyy-MM-dd"),
+        };
+      }),
+    [activeAssignments]
   );
 
   /* State for Relative Mode (100% Stacked) */
@@ -115,31 +127,59 @@ export function WorkloadChart({
     }
   };
 
-  const { chartData, classNames, hasActiveAssignments, maxStackHeight, sundays, classColorMap } = useMemo(() => {
-    if (!semester) return { chartData: [], classNames: [], hasActiveAssignments: false, maxStackHeight: 0, sundays: [], classColorMap: new Map() };
+  const { chartData, classNames, hasActiveAssignments, maxStackHeight, sundays, classColorMap, tooltipAssignmentsByDate } = useMemo(() => {
+    if (!semester) {
+      return {
+        chartData: [],
+        classNames: [],
+        hasActiveAssignments: false,
+        maxStackHeight: 0,
+        sundays: [],
+        classColorMap: new Map(),
+        tooltipAssignmentsByDate: new Map<string, Assignment[]>(),
+      };
+    }
 
-    const hasActiveAssignments = activeAssignments.length > 0;
+    const hasActiveAssignments = parsedActiveAssignments.length > 0;
 
     // Add buffer
     const startDate = subDays(parseISO(semester.start_date), 2);
     const endDate = addDays(parseISO(semester.end_date), 2);
     const days = eachDayOfInterval({ start: startDate, end: endDate });
 
-    const uniqueClasses = [...new Set(activeAssignments.map((a) => a.class_name))].sort();
+    const uniqueClasses = [...new Set(parsedActiveAssignments.map((a) => a.class_name))].sort();
 
     // Deterministically assign theme-aware colors based on sorted class names
     // This overrides stored hex codes so that the Theme system effectively "takes over" appearance.
     const classColorMap = new Map();
     uniqueClasses.forEach((name) => {
-      classColorMap.set(name, getClassThemeColor(name, uniqueClasses));
+      classColorMap.set(name, getClassThemeColor(name, uniqueClasses, true));
+    });
+
+    const weightByOffset = [1, 0.75, 0.5, 0.25, 0.1, 0.05, 0.025, 0.01];
+    const classWeightedLoadByDate = new Map<string, Map<string, number>>();
+
+    uniqueClasses.forEach((className) => {
+      classWeightedLoadByDate.set(className, new Map());
+    });
+
+    parsedActiveAssignments.forEach((assignment) => {
+      const classWeightMap = classWeightedLoadByDate.get(assignment.class_name);
+      if (!classWeightMap) return;
+
+      weightByOffset.forEach((weight, offset) => {
+        const dayKey = format(addDays(assignment.dueDate, -offset), "yyyy-MM-dd");
+        classWeightMap.set(dayKey, (classWeightMap.get(dayKey) ?? 0) + weight);
+      });
     });
 
     let globalMaxDailyTotal = 0;
+    const RELATIVE_BASELINE = 0.2;
 
-    // First Pass: Calculate values and find Max Load
     const initialData = days.map((day) => {
+      const dayKey = format(day, "yyyy-MM-dd");
       const point: ChartDataPoint = {
-        date: format(day, "yyyy-MM-dd"),
+        date: dayKey,
         displayDate: format(day, "MMM d"),
         timestamp: startOfDay(day).getTime(),
       };
@@ -147,36 +187,11 @@ export function WorkloadChart({
       let dailyTotal = 0;
 
       uniqueClasses.forEach((className) => {
-        const classAssignments = activeAssignments.filter((a) => a.class_name === className);
-        let weight = 0;
-
-        classAssignments.forEach(assignment => {
-          const dueDate = parseISO(assignment.due_date);
-          const daysUntilDue = differenceInCalendarDays(dueDate, day);
-
-          if (daysUntilDue === 0) weight += 1.0;
-          else if (daysUntilDue === 1) weight += 0.75;
-          else if (daysUntilDue === 2) weight += 0.50;
-          else if (daysUntilDue === 3) weight += 0.25;
-          else if (daysUntilDue === 4) weight += 0.1;
-          else if (daysUntilDue === 5) weight += 0.05;
-          else if (daysUntilDue === 6) weight += 0.025;
-          else if (daysUntilDue === 7) weight += 0.01;
-        });
-
-        // Add base value so the layer is always present
-        // In Relative Mode: Add a distinct baseline so all classes share space evenly if no assignments
-        // In Absolute Mode: Add small base for visual persistence
-        const RELATIVE_BASELINE = 0.2;
-
+        const weight = classWeightedLoadByDate.get(className)?.get(dayKey) ?? 0;
         let val = 0;
         if (isRelativeMode) {
-          // Add baseline to EVERY class.
-          // If all classes have 0 deadlines, they all get 0.2, resulting in equal distribution (100% / N).
-          // If one has a deadline (weight=1), it becomes 1.2 vs 0.2, taking up more space.
           val = weight + RELATIVE_BASELINE;
         } else {
-          // Absolute mode: Keep original behavior
           val = weight + BASE_VALUE;
         }
 
@@ -188,23 +203,29 @@ export function WorkloadChart({
         globalMaxDailyTotal = dailyTotal;
       }
 
-      // Store total for second pass
-      point._dailyTotal = dailyTotal;
-
       return point;
     });
 
-    // Second Pass: Add Free Time (Only relevant for Absolute Mode or if we want a gap)
-    const finalData = initialData.map(point => {
-      // In modified Relative Mode logic, we don't need 'free_time' to fill space 
-      // because the baselines ensure there is always data to stack to 100%.
-      // We can just set it to 0 for both modes to keep the graph clean.
-      point["free_time"] = 0;
-
-      return point;
-    });
+    const finalData = initialData.map((point) => ({ ...point, free_time: 0 }));
 
     const sundays = days.filter(day => isSunday(day));
+    const classOrderMap = new Map(uniqueClasses.map((name, index) => [name, index]));
+    const tooltipAssignmentsByDate = new Map<string, Assignment[]>();
+    parsedActiveAssignments.forEach((assignment) => {
+      const existing = tooltipAssignmentsByDate.get(assignment.dueDateKey) ?? [];
+      existing.push(assignment);
+      tooltipAssignmentsByDate.set(assignment.dueDateKey, existing);
+    });
+    tooltipAssignmentsByDate.forEach((dateAssignments, dateKey) => {
+      tooltipAssignmentsByDate.set(
+        dateKey,
+        [...dateAssignments].sort((a, b) => {
+          const indexA = classOrderMap.get(a.class_name) ?? 0;
+          const indexB = classOrderMap.get(b.class_name) ?? 0;
+          return indexB - indexA;
+        })
+      );
+    });
 
     return {
       chartData: finalData,
@@ -215,9 +236,10 @@ export function WorkloadChart({
       hasActiveAssignments,
       maxStackHeight: globalMaxDailyTotal,
       sundays,
-      classColorMap, // Return this so we can use it in tooltip
+      classColorMap,
+      tooltipAssignmentsByDate,
     };
-  }, [activeAssignments, semester, isRelativeMode]);
+  }, [parsedActiveAssignments, semester, isRelativeMode]);
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (!active || !payload || !payload.length) return null;
@@ -226,16 +248,7 @@ export function WorkloadChart({
     const dataPoint = payload[0].payload as ChartDataPoint;
     const dateStr = dataPoint.date;
 
-    const assignmentsOnDay = activeAssignments.filter(
-      (a) =>
-        format(parseISO(a.due_date), "yyyy-MM-dd") === dateStr
-    ).sort((a, b) => {
-      // Recharts stacks items in order (0 at bottom, length-1 at top)
-      // We want the tooltip to show Top -> Bottom, so we sort Descending by index
-      const indexA = classNames.findIndex(c => c.name === a.class_name);
-      const indexB = classNames.findIndex(c => c.name === b.class_name);
-      return indexB - indexA;
-    });
+    const assignmentsOnDay = tooltipAssignmentsByDate.get(dateStr) ?? [];
 
     // If no real assignments, show a "Quiet Day" tooltip or nothing
     if (assignmentsOnDay.length === 0) {

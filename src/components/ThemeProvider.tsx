@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 export type Theme = "tropical" | "ocean" | "forest" | "sunset" | "nebula";
 
@@ -66,16 +66,16 @@ export function ThemeProvider({
         localStorage.setItem("app-dark-mode", String(isDarkMode));
     }, [theme, isDarkMode]);
 
-    const toggleDarkMode = () => {
+    const toggleDarkMode = useCallback(() => {
         setIsDarkMode((prev) => !prev);
-    };
+    }, []);
 
-    const value = {
+    const value = useMemo(() => ({
         theme,
         setTheme,
         isDarkMode,
         toggleDarkMode,
-    };
+    }), [theme, isDarkMode, toggleDarkMode]);
 
     return (
         <ThemeProviderContext.Provider value={value}>

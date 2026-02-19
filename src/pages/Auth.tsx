@@ -13,6 +13,7 @@ import { z } from "zod";
 import { cn } from "@/lib/utils";
 import { strongPasswordSchema } from "@/lib/authValidation";
 import { getAuthErrorMessage } from "@/lib/authErrors";
+import { useAuth } from "@/hooks/useAuth";
 
 // Schema for Login
 const loginSchema = z.object({
@@ -40,6 +41,7 @@ export default function Auth() {
   const [lastAuthErrorMessage, setLastAuthErrorMessage] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user, loading: authLoading } = useAuth();
 
   const showValidationToast = (message: string) => {
     toast({
@@ -71,20 +73,15 @@ export default function Auth() {
     document.body.style.removeProperty("overflow");
     document.body.removeAttribute("data-scroll-locked");
 
-    const bootstrapAuth = async () => {
-      if (hasRecoveryParams) {
-        navigate(`/update-password${window.location.search}${window.location.hash}`, { replace: true });
-        return;
-      }
+    if (hasRecoveryParams) {
+      navigate(`/update-password${window.location.search}${window.location.hash}`, { replace: true });
+      return;
+    }
 
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        navigate("/", { replace: true });
-      }
-    };
-
-    bootstrapAuth();
-  }, [hasRecoveryParams, navigate]);
+    if (!authLoading && user) {
+      navigate("/", { replace: true });
+    }
+  }, [authLoading, hasRecoveryParams, navigate, user]);
 
   const validateForm = () => {
     setErrors({});
