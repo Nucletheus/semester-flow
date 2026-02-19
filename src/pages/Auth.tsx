@@ -10,6 +10,7 @@ import { BookOpen, Loader2, ArrowLeft, UserPlus } from "lucide-react";
 import { z } from "zod";
 import { cn } from "@/lib/utils";
 import { strongPasswordSchema } from "@/lib/authValidation";
+import { getAuthErrorMessage } from "@/lib/authErrors";
 
 // Schema for Login
 const loginSchema = z.object({
@@ -22,12 +23,17 @@ const signupSchema = loginSchema.extend({ password: strongPasswordSchema });
 type AuthView = "login" | "signup" | "forgot";
 
 export default function Auth() {
+  const showDebugPanel = import.meta.env.DEV || import.meta.env.VITE_AUTH_DEBUG === "true";
   const [view, setView] = useState<AuthView>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string; confirmPassword?: string }>({});
+  const [formError, setFormError] = useState<string | null>(null);
+  const [formSuccess, setFormSuccess] = useState<string | null>(null);
+  const [lastAuthErrorCode, setLastAuthErrorCode] = useState<string | null>(null);
+  const [lastAuthErrorMessage, setLastAuthErrorMessage] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -73,6 +79,8 @@ export default function Auth() {
 
   const validateForm = () => {
     setErrors({});
+    setFormError(null);
+    setFormSuccess(null);
 
     if (view === "forgot") {
       const emailValidation = z.string().email().safeParse(email);
@@ -119,9 +127,13 @@ export default function Auth() {
     const appOrigin = window.location.origin;
 
     try {
+      setLastAuthErrorCode(null);
+      setLastAuthErrorMessage(null);
       if (view === "login") {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        setFormError(null);
+        setFormSuccess("Signed in successfully.");
         toast({ title: "Welcome back!", description: "You've successfully signed in." });
       } else if (view === "signup") {
         const { data, error } = await supabase.auth.signUp({
@@ -132,6 +144,8 @@ export default function Auth() {
         if (error) throw error;
 
         if (data.session) {
+          setFormError(null);
+          setFormSuccess("Account created. You're signed in.");
           toast({
             title: "Account created",
             description: "You're signed in and ready to go.",
@@ -140,6 +154,8 @@ export default function Auth() {
           return;
         }
 
+        setFormError(null);
+        setFormSuccess("Account created. Check your email for verification.");
         toast({
           title: "Account created!",
           description: "Check your email for verification. You can sign in as soon as your project auth settings allow it.",
@@ -150,6 +166,8 @@ export default function Auth() {
           redirectTo: `${appOrigin}/update-password`,
         });
         if (error) throw error;
+        setFormError(null);
+        setFormSuccess(`Reset email sent to ${recoveryEmail} if an account exists.`);
         toast({
           title: "Reset link sent",
           description: `If an account exists for ${recoveryEmail}, a password reset link has been sent.`,
@@ -158,20 +176,21 @@ export default function Auth() {
         setPassword("");
         setConfirmPassword("");
       }
-    } catch (error: any) {
-      let message = error.message;
-      const errorCode = error?.code;
-      if (error.message.includes("User already registered")) {
+    } catch (error: unknown) {
+      const errorCode = typeof (error as { code?: unknown })?.code === "string"
+        ? (error as { code?: string }).code
+        : null;
+      const rawMessage = typeof (error as { message?: unknown })?.message === "string"
+        ? (error as { message?: string }).message
+        : "";
+      let message = getAuthErrorMessage(error);
+      if (rawMessage.includes("User already registered")) {
         message = "This email is already registered. Try signing in instead.";
-      } else if (errorCode === "email_not_confirmed" || error.message.includes("Email not confirmed")) {
-        message = "Please check your email and click the confirmation link before signing in.";
-      } else if (error.message.includes("Invalid login credentials")) {
-        message = "Invalid email or password. Please try again.";
-      } else if (errorCode === "over_email_send_rate_limit" || error.message.includes("rate limit")) {
-        message = "Too many reset emails were requested. Please wait and try again.";
-      } else if (errorCode === "otp_expired" || error.message.toLowerCase().includes("expired")) {
-        message = "This reset link has expired. Please request a new one.";
       }
+      setLastAuthErrorCode(errorCode);
+      setLastAuthErrorMessage(rawMessage || message);
+      setFormSuccess(null);
+      setFormError(message);
       toast({ title: "Error", description: message, variant: "destructive" });
     } finally {
       setLoading(false);
@@ -181,6 +200,8 @@ export default function Auth() {
   const handleEnterForgot = () => {
     setView("forgot");
     setErrors({});
+    setFormError(null);
+    setFormSuccess(null);
     setPassword("");
     setConfirmPassword("");
     toast({
@@ -230,6 +251,16 @@ export default function Auth() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
+            {formError && (
+              <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {formError}
+              </div>
+            )}
+            {formSuccess && (
+              <div className="rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-sm text-primary">
+                {formSuccess}
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -317,6 +348,18 @@ export default function Auth() {
               </button>
             )}
           </div>
+          {showDebugPanel && (
+            <div className="mt-4 rounded-md border border-dashed border-muted-foreground/40 bg-muted/30 p-3 text-left text-xs text-muted-foreground space-y-1">
+              <p className="font-medium text-foreground">Auth Debug</p>
+              <p>origin: {window.location.origin}</p>
+              <p>path: {window.location.pathname}</p>
+              <p>view: {view}</p>
+              <p>hasRecoveryParams: {String(hasRecoveryParams)}</p>
+              <p>loading: {String(loading)}</p>
+              <p>lastErrorCode: {lastAuthErrorCode ?? "-"}</p>
+              <p>lastErrorMessage: {lastAuthErrorMessage ?? "-"}</p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
