@@ -38,6 +38,10 @@ export default function UpdatePassword() {
             searchParams.get("type") === "recovery" ||
             searchParams.has("code");
 
+        const accessToken = hashParams.get("access_token");
+        const refreshToken = hashParams.get("refresh_token");
+        const authCode = searchParams.get("code");
+
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
             if (!isMounted) return;
 
@@ -47,6 +51,27 @@ export default function UpdatePassword() {
         });
 
         const validateRecoverySession = async () => {
+            // In some hosted previews, Supabase URL session parsing can be flaky.
+            // Explicitly establish a session from URL params when available.
+            if (accessToken && refreshToken) {
+                const { error } = await supabase.auth.setSession({
+                    access_token: accessToken,
+                    refresh_token: refreshToken,
+                });
+                if (!isMounted) return;
+                if (!error) {
+                    setReady(true);
+                    return;
+                }
+            } else if (authCode) {
+                const { error } = await supabase.auth.exchangeCodeForSession(authCode);
+                if (!isMounted) return;
+                if (!error) {
+                    setReady(true);
+                    return;
+                }
+            }
+
             // Session establishment can lag behind routing in hosted environments.
             for (let attempt = 0; attempt < 10; attempt++) {
                 const { data: { session } } = await supabase.auth.getSession();
