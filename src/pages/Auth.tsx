@@ -66,6 +66,11 @@ export default function Auth() {
   }, []);
 
   useEffect(() => {
+    // Defensive cleanup for any stale interaction lock from previous modal/dropdown route.
+    document.body.style.removeProperty("pointer-events");
+    document.body.style.removeProperty("overflow");
+    document.body.removeAttribute("data-scroll-locked");
+
     const bootstrapAuth = async () => {
       if (hasRecoveryParams) {
         navigate(`/update-password${window.location.search}${window.location.hash}`, { replace: true });
@@ -149,6 +154,7 @@ export default function Auth() {
         setFormError(null);
         setFormSuccess("Signed in successfully.");
         toast({ title: "Welcome back!", description: "You've successfully signed in." });
+        navigate("/", { replace: true });
       } else if (view === "signup") {
         const { data, error } = await supabase.auth.signUp({
           email,
@@ -301,7 +307,6 @@ export default function Auth() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className={errors.email ? "border-destructive" : ""}
-                  disabled={view === "verify"}
                 />
                 {errors.email && (
                   <p className="text-sm text-destructive">{errors.email}</p>

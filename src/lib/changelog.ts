@@ -1,7 +1,7 @@
 // Changelog data for What's New popup
 // Update CURRENT_VERSION and add new entries to CHANGELOG when deploying updates
 
-export const CURRENT_VERSION = "1.2.0";
+export const CURRENT_VERSION = "1.3.0";
 
 export interface ChangelogEntry {
     version: string;
@@ -11,6 +11,18 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: "1.3.0",
+        date: "2026-02-19",
+        title: "Auth + Deadline Status Reliability",
+        highlights: [
+            "Fixed completed status persistence so updates from the deadlines table are saved correctly",
+            "Dashboard cards and upcoming deadlines now reflect real completion status instead of hardcoded values",
+            "Workload Overview now excludes completed deadlines and matches active items in the deadlines table",
+            "Successful login now redirects directly into the app",
+            "Logout now redirects to auth and the auth screen remains fully interactive after redirect",
+        ],
+    },
     {
         version: "1.2.0",
         date: "2026-01-19",

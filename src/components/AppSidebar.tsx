@@ -13,7 +13,7 @@ import {
     Check,
     LockKeyhole,
 } from "lucide-react"
-import { useLocation, Link } from "react-router-dom"
+import { useLocation, Link, useNavigate } from "react-router-dom"
 import { useAuth } from "@/hooks/useAuth"
 import { supabase } from "@/integrations/supabase/client"
 import {
@@ -58,6 +58,7 @@ import { Label } from "@/components/ui/label"
 export function AppSidebar() {
     const { user, signOut } = useAuth()
     const location = useLocation()
+    const navigate = useNavigate()
     const { theme, setTheme, isDarkMode, toggleDarkMode } = useTheme()
     const [showSemesterSettings, setShowSemesterSettings] = useState(false)
     const [showChangePassword, setShowChangePassword] = useState(false)
@@ -65,13 +66,22 @@ export function AppSidebar() {
 
     const initials = user?.email?.slice(0, 2).toUpperCase() || "U"
 
+    const handleSignOut = async () => {
+        await signOut()
+        // Defensive cleanup in case a dropdown/dialog layer leaves the body interaction-locked.
+        document.body.style.removeProperty("pointer-events")
+        document.body.style.removeProperty("overflow")
+        document.body.removeAttribute("data-scroll-locked")
+        navigate("/auth", { replace: true })
+    }
+
     const handleDeleteAccount = async () => {
         try {
             if (!user?.id) return;
             // @ts-ignore
             const { error } = await supabase.rpc('delete_user');
             if (error) throw error;
-            await signOut();
+            await handleSignOut();
         } catch (error) {
             console.error('Error deleting account:', error);
         }
@@ -141,7 +151,7 @@ export function AppSidebar() {
                         <SidebarGroupContent>
                             <SidebarMenu>
                                 <SidebarMenuItem>
-                                    <DropdownMenu>
+                                    <DropdownMenu modal={false}>
                                         <DropdownMenuTrigger asChild>
                                             <SidebarMenuButton tooltip="Theme">
                                                 <Palette />
@@ -192,7 +202,7 @@ export function AppSidebar() {
                 <SidebarFooter>
                     <SidebarMenu>
                         <SidebarMenuItem>
-                            <DropdownMenu>
+                            <DropdownMenu modal={false}>
                                 <DropdownMenuTrigger asChild>
                                     <SidebarMenuButton
                                         size="lg"
@@ -221,7 +231,7 @@ export function AppSidebar() {
                                         <Trash2 className="mr-2 h-4 w-4" />
                                         Delete Account
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={signOut}>
+                                    <DropdownMenuItem onClick={handleSignOut}>
                                         <LogOut className="mr-2 h-4 w-4" />
                                         Log out
                                     </DropdownMenuItem>
