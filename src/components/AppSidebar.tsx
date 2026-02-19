@@ -28,6 +28,7 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
     SidebarSeparator,
+    useSidebar,
 } from "@/components/ui/sidebar"
 import {
     DropdownMenu,
@@ -59,6 +60,7 @@ export function AppSidebar() {
     const { user, signOut } = useAuth()
     const location = useLocation()
     const navigate = useNavigate()
+    const { isMobile, setOpen, setOpenMobile } = useSidebar()
     const { theme, setTheme, isDarkMode, toggleDarkMode } = useTheme()
     const [showSemesterSettings, setShowSemesterSettings] = useState(false)
     const [showChangePassword, setShowChangePassword] = useState(false)
@@ -108,6 +110,14 @@ export function AppSidebar() {
         { value: "nebula", label: "Nebula", color: "bg-violet-600" },
     ];
 
+    const closeSidebarAfterNavigation = () => {
+        if (isMobile) {
+            setOpenMobile(false)
+            return
+        }
+        setOpen(false)
+    }
+
     return (
         <>
             <Sidebar>
@@ -135,7 +145,7 @@ export function AppSidebar() {
                                             isActive={location.pathname === item.url}
                                             tooltip={item.title}
                                         >
-                                            <Link to={item.url}>
+                                            <Link to={item.url} onClick={closeSidebarAfterNavigation}>
                                                 <item.icon />
                                                 <span>{item.title}</span>
                                             </Link>

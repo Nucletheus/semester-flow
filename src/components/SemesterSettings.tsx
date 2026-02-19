@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { format } from "date-fns";
-import { CalendarIcon, Plus, Trash2, Check, GraduationCap } from "lucide-react";
+import { format, parseISO } from "date-fns";
+import { CalendarIcon, Plus, Trash2, Check, GraduationCap, Pencil } from "lucide-react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -50,6 +50,14 @@ const formSchema = z.object({
 });
 
 type FormValues = z.infer<typeof formSchema>;
+type EditValues = Pick<FormValues, "start_date" | "end_date">;
+const editSchema = z.object({
+  start_date: z.date({ required_error: "Start date is required" }),
+  end_date: z.date({ required_error: "End date is required" }),
+}).refine((data) => data.end_date > data.start_date, {
+  message: "End date must be after start date",
+  path: ["end_date"],
+});
 
 interface SemesterSettingsProps {
   open: boolean;
@@ -60,12 +68,16 @@ export function SemesterSettings({ open, onOpenChange }: SemesterSettingsProps) 
   const { semesters, activeSemester, createSemester, updateSemester, deleteSemester } = useSemesters();
   const [isAdding, setIsAdding] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [editingSemesterId, setEditingSemesterId] = useState<string | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
     },
+  });
+  const editForm = useForm<EditValues>({
+    resolver: zodResolver(editSchema),
   });
 
   const handleSubmit = async (values: FormValues) => {
@@ -90,6 +102,29 @@ export function SemesterSettings({ open, onOpenChange }: SemesterSettingsProps) 
     }
   };
 
+  const handleStartEdit = (semester: Semester) => {
+    setEditingSemesterId(semester.id);
+    editForm.reset({
+      start_date: parseISO(semester.start_date),
+      end_date: parseISO(semester.end_date),
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingSemesterId(null);
+    editForm.reset();
+  };
+
+  const handleEditSubmit = async (values: EditValues) => {
+    if (!editingSemesterId) return;
+    await updateSemester.mutateAsync({
+      id: editingSemesterId,
+      start_date: format(values.start_date, "yyyy-MM-dd"),
+      end_date: format(values.end_date, "yyyy-MM-dd"),
+    });
+    handleCancelEdit();
+  };
+
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
@@ -112,51 +147,148 @@ export function SemesterSettings({ open, onOpenChange }: SemesterSettingsProps) 
               ) : (
                 <div className="space-y-2">
                   {semesters.map((semester) => (
+                    <Form key={semester.id} {...editForm}>
                     <div
-                      key={semester.id}
                       className={cn(
-                        "flex items-center justify-between p-3 rounded-lg border transition-colors",
+                        "p-3 rounded-lg border transition-colors",
                         semester.is_active
                           ? "bg-primary/5 border-primary/30"
                           : "bg-card border-border hover:bg-muted/50"
                       )}
                     >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium text-sm truncate">{semester.name}</p>
-                          {semester.is_active && (
-                            <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-                              Active
-                            </span>
-                          )}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-sm truncate">{semester.name}</p>
+                            {semester.is_active && (
+                              <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                                Active
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {format(parseISO(semester.start_date), "MMM d")} -{" "}
+                            {format(parseISO(semester.end_date), "MMM d, yyyy")}
+                          </p>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {format(new Date(semester.start_date), "MMM d")} -{" "}
-                          {format(new Date(semester.end_date), "MMM d, yyyy")}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        {!semester.is_active && (
+                        <div className="flex items-center gap-1">
+                          {!semester.is_active && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => handleSetActive(semester.id)}
+                              title="Set as active"
+                            >
+                              <Check className="w-4 h-4" />
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8"
-                            onClick={() => handleSetActive(semester.id)}
-                            title="Set as active"
+                            onClick={() => handleStartEdit(semester)}
+                            title="Edit dates"
                           >
-                            <Check className="w-4 h-4" />
+                            <Pencil className="w-4 h-4" />
                           </Button>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive hover:text-destructive"
-                          onClick={() => setDeleteId(semester.id)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:text-destructive"
+                            onClick={() => setDeleteId(semester.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
+
+                      {editingSemesterId === semester.id && (
+                        <form onSubmit={editForm.handleSubmit(handleEditSubmit)} className="mt-3 space-y-3">
+                          <div className="grid grid-cols-2 gap-3">
+                            <FormField
+                              control={editForm.control}
+                              name="start_date"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Start Date</FormLabel>
+                                  <Popover>
+                                    <PopoverTrigger asChild>
+                                      <FormControl>
+                                        <Button
+                                          variant="outline"
+                                          className={cn(
+                                            "w-full justify-start text-left font-normal text-sm",
+                                            !field.value && "text-muted-foreground"
+                                          )}
+                                        >
+                                          <CalendarIcon className="mr-2 h-4 w-4" />
+                                          {field.value ? format(field.value, "MMM d") : "Start"}
+                                        </Button>
+                                      </FormControl>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                      <Calendar
+                                        mode="single"
+                                        selected={field.value}
+                                        onSelect={field.onChange}
+                                        initialFocus
+                                        className="p-3 pointer-events-auto"
+                                      />
+                                    </PopoverContent>
+                                  </Popover>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={editForm.control}
+                              name="end_date"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>End Date</FormLabel>
+                                  <Popover>
+                                    <PopoverTrigger asChild>
+                                      <FormControl>
+                                        <Button
+                                          variant="outline"
+                                          className={cn(
+                                            "w-full justify-start text-left font-normal text-sm",
+                                            !field.value && "text-muted-foreground"
+                                          )}
+                                        >
+                                          <CalendarIcon className="mr-2 h-4 w-4" />
+                                          {field.value ? format(field.value, "MMM d") : "End"}
+                                        </Button>
+                                      </FormControl>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                      <Calendar
+                                        mode="single"
+                                        selected={field.value}
+                                        onSelect={field.onChange}
+                                        initialFocus
+                                        className="p-3 pointer-events-auto"
+                                      />
+                                    </PopoverContent>
+                                  </Popover>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                          <div className="flex gap-2">
+                            <Button type="button" variant="outline" className="flex-1" onClick={handleCancelEdit}>
+                              Cancel
+                            </Button>
+                            <Button type="submit" className="flex-1" disabled={updateSemester.isPending}>
+                              Save Dates
+                            </Button>
+                          </div>
+                        </form>
+                      )}
                     </div>
+                    </Form>
                   ))}
                 </div>
               )}
