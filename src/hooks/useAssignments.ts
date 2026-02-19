@@ -10,7 +10,7 @@ export interface Assignment {
   class_name: string;
   assignment_name: string;
   type: "Quiz" | "Exam" | "Lab" | "Essay";
-  
+  status?: "not started" | "in progress" | "completed";
   due_date: string;
   color: string;
   created_at: string;
@@ -25,7 +25,7 @@ export const useAssignments = (semesterId?: string) => {
   const queryClient = useQueryClient();
 
   const { data: assignments = [], isLoading } = useQuery({
-    queryKey: ["assignments", semesterId],
+    queryKey: ["assignments", user?.id, semesterId],
     queryFn: async () => {
       if (!user || !semesterId) return [];
       const { data, error } = await supabase

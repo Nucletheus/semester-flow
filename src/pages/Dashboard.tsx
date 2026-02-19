@@ -30,9 +30,13 @@ export default function Dashboard() {
     createAssignment.mutate(values);
   };
 
+  const activeAssignments = useMemo(
+    () => assignments.filter((assignment) => assignment.status !== "completed"),
+    [assignments]
+  );
+
   // Get next 5 active assignments (including overdue)
-  const upcomingAssignments = assignments
-    .filter(() => true)
+  const upcomingAssignments = activeAssignments
     .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime())
     .slice(0, 5);
 
@@ -54,6 +58,12 @@ export default function Dashboard() {
     });
     return Array.from(map.values());
   }, [assignments, uniqueClassNames]);
+
+  const completedCount = useMemo(
+    () => assignments.filter((assignment) => assignment.status === "completed").length,
+    [assignments]
+  );
+  const remainingCount = assignments.length - completedCount;
 
   return (
     <div className="min-h-screen bg-background">
@@ -156,7 +166,7 @@ export default function Dashboard() {
                 <CardContent className="p-4 text-center">
                   <div className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">Done</div>
                   <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                    0
+                    {completedCount}
                   </div>
                 </CardContent>
               </Card>
@@ -164,7 +174,7 @@ export default function Dashboard() {
                 <CardContent className="p-4 text-center">
                   <div className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">Left</div>
                   <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-                    {assignments.length}
+                    {remainingCount}
                   </div>
                 </CardContent>
               </Card>

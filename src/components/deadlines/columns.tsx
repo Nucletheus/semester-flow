@@ -9,10 +9,8 @@ import { CellDeadline } from "./cells/CellDeadline"
 import { CellStatus } from "./cells/CellStatus"
 import { CellDueDate } from "./cells/CellDueDate"
 
-// Extended type for UI purposes
-export type AssignmentUI = Omit<Assignment, "status"> & {
-    status?: string;
-}
+// Keep an explicit alias for table typing.
+export type AssignmentUI = Assignment
 
 export interface TableMeta {
     updateData: (id: string, field: keyof AssignmentUI, value: any) => void;

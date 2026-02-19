@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Lock, Loader2 } from "lucide-react";
 import { strongPasswordSchema } from "@/lib/authValidation";
 import { getAuthErrorMessage } from "@/lib/authErrors";
+import { PasswordRequirements } from "@/components/PasswordRequirements";
 
 export default function UpdatePassword() {
     const [password, setPassword] = useState("");
@@ -155,6 +156,7 @@ export default function UpdatePassword() {
                                 onChange={(e) => setConfirmPassword(e.target.value)}
                             />
                         </div>
+                        <PasswordRequirements password={password} confirmPassword={confirmPassword} />
                         <Button type="submit" className="w-full" disabled={loading}>
                             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Update Password

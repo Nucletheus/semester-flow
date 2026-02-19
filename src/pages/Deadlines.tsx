@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { DataTable } from "@/components/ui/data-table"; // Updated import
-import { columns, AssignmentUI } from "@/components/deadlines/columns"; // Create columns definition
+import { columns } from "@/components/deadlines/columns"; // Create columns definition
 import { BulkAddDialog } from "@/components/BulkAddDialog";
 import { AssignmentForm } from "@/components/AssignmentForm";
 import { SemesterSettings } from "@/components/SemesterSettings";
@@ -66,8 +66,6 @@ export default function Deadlines() {
   }, [assignments]);
 
   const updateData = (id: string, field: keyof Assignment | string, value: any) => {
-    // status is UI-only, not persisted in DB
-    if (field === "status") return;
     updateAssignment.mutate({ id, [field]: value });
   };
 
@@ -100,12 +98,10 @@ export default function Deadlines() {
     return Array.from(map.values());
   }, [assignments, uniqueClassNames]);
 
-  // Cast assignments to include status for UI typing
-  const data = assignments as AssignmentUI[];
-
   const tableData = useMemo(() => {
     return assignments.map(a => ({
       ...a,
+      status: a.status ?? "not started",
       color: getClassThemeVar(a.class_name, uniqueClassNames),
     }));
   }, [assignments, uniqueClassNames]);

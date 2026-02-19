@@ -48,6 +48,11 @@ export function WorkloadChart({
   hiddenCategories: propHiddenCategories,
   onHiddenCategoriesChange,
 }: WorkloadChartProps) {
+  const activeAssignments = useMemo(
+    () => assignments.filter((assignment) => assignment.status !== "completed"),
+    [assignments]
+  );
+
   /* State for Relative Mode (100% Stacked) */
   const [isRelativeMode, setIsRelativeMode] = useState(() => {
     if (typeof window !== "undefined") {
@@ -113,8 +118,6 @@ export function WorkloadChart({
   const { chartData, classNames, hasActiveAssignments, maxStackHeight, sundays, classColorMap } = useMemo(() => {
     if (!semester) return { chartData: [], classNames: [], hasActiveAssignments: false, maxStackHeight: 0, sundays: [], classColorMap: new Map() };
 
-    // Filter out completed assignments
-    const activeAssignments = assignments;
     const hasActiveAssignments = activeAssignments.length > 0;
 
     // Add buffer
@@ -122,7 +125,7 @@ export function WorkloadChart({
     const endDate = addDays(parseISO(semester.end_date), 2);
     const days = eachDayOfInterval({ start: startDate, end: endDate });
 
-    const uniqueClasses = [...new Set(assignments.map((a) => a.class_name))].sort();
+    const uniqueClasses = [...new Set(activeAssignments.map((a) => a.class_name))].sort();
 
     // Deterministically assign theme-aware colors based on sorted class names
     // This overrides stored hex codes so that the Theme system effectively "takes over" appearance.
@@ -214,7 +217,7 @@ export function WorkloadChart({
       sundays,
       classColorMap, // Return this so we can use it in tooltip
     };
-  }, [assignments, semester, isRelativeMode]);
+  }, [activeAssignments, semester, isRelativeMode]);
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (!active || !payload || !payload.length) return null;
@@ -223,7 +226,7 @@ export function WorkloadChart({
     const dataPoint = payload[0].payload as ChartDataPoint;
     const dateStr = dataPoint.date;
 
-    const assignmentsOnDay = assignments.filter(
+    const assignmentsOnDay = activeAssignments.filter(
       (a) =>
         format(parseISO(a.due_date), "yyyy-MM-dd") === dateStr
     ).sort((a, b) => {

@@ -1,4 +1,5 @@
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { PasswordRequirements } from "@/components/PasswordRequirements";
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,7 +22,6 @@ const loginSchema = z.object({
 
 const signupSchema = loginSchema.extend({ password: strongPasswordSchema });
 
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 
 type AuthView = "login" | "signup" | "forgot" | "verify";
 
@@ -229,6 +229,7 @@ export default function Auth() {
     setErrors({});
     setFormError(null);
     setFormSuccess(null);
+    setOtp("");
     setPassword("");
     setConfirmPassword("");
     toast({
@@ -366,6 +367,7 @@ export default function Auth() {
                 {errors.confirmPassword && (
                   <p className="text-sm text-destructive">{errors.confirmPassword}</p>
                 )}
+                <PasswordRequirements password={password} confirmPassword={confirmPassword} />
               </div>
             )}
 
