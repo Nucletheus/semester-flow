@@ -38,6 +38,14 @@ export default function Auth() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  const showValidationToast = (message: string) => {
+    toast({
+      title: "Check your input",
+      description: message,
+      variant: "destructive",
+    });
+  };
+
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "PASSWORD_RECOVERY") {
@@ -65,7 +73,9 @@ export default function Auth() {
     if (view === "recovery") {
       const emailValidation = z.string().email().safeParse(email);
       if (!emailValidation.success) {
-        setErrors({ email: "Please enter a valid email address" });
+        const message = "Please enter a valid email address";
+        setErrors({ email: message });
+        showValidationToast(message);
         return false;
       }
       return true;
@@ -82,11 +92,15 @@ export default function Auth() {
         if (err.path[0] === "password") fieldErrors.password = err.message;
       });
       setErrors(fieldErrors);
+      const firstError = fieldErrors.email || fieldErrors.password || "Please review your details and try again.";
+      showValidationToast(firstError);
       return false;
     }
 
     if (view === "signup" && password !== confirmPassword) {
-      setErrors({ confirmPassword: "Passwords do not match" });
+      const message = "Passwords do not match";
+      setErrors({ confirmPassword: message });
+      showValidationToast(message);
       return false;
     }
 
@@ -114,16 +128,17 @@ export default function Auth() {
         if (error) throw error;
         toast({
           title: "Account created!",
-          description: "Please check your email to confirm your account before signing in."
+          description: "Please check your email to confirm your account before signing in. If you don't see it, check spam or promotions."
         });
       } else if (view === "recovery") {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        const recoveryEmail = email.trim().toLowerCase();
+        const { error } = await supabase.auth.resetPasswordForEmail(recoveryEmail, {
           redirectTo: `${appOrigin}/update-password`,
         });
         if (error) throw error;
         toast({
-          title: "Recovery email sent",
-          description: "Check your email for the password reset link.",
+          title: "Reset link sent",
+          description: `If an account exists for ${recoveryEmail}, a password reset link has been sent.`,
         });
         setView("login");
       }
@@ -136,11 +151,26 @@ export default function Auth() {
         message = "Please check your email and click the confirmation link before signing in.";
       } else if (error.message.includes("Invalid login credentials")) {
         message = "Invalid email or password. Please try again.";
+      } else if (errorCode === "over_email_send_rate_limit" || error.message.includes("rate limit")) {
+        message = "Too many reset emails were requested. Please wait and try again.";
+      } else if (errorCode === "otp_expired" || error.message.includes("expired")) {
+        message = "This reset link is no longer valid. Please request a new one.";
       }
       toast({ title: "Error", description: message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleEnterRecovery = () => {
+    setView("recovery");
+    setErrors({});
+    setPassword("");
+    setConfirmPassword("");
+    toast({
+      title: "Reset your password",
+      description: "Enter your account email and we'll send a reset link.",
+    });
   };
 
   const getTitle = () => {
@@ -206,7 +236,7 @@ export default function Auth() {
                   {view === "login" && (
                     <button
                       type="button"
-                      onClick={() => setView("recovery")}
+                      onClick={handleEnterRecovery}
                       className="text-xs text-muted-foreground hover:text-primary transition-colors"
                     >
                       Forgot password?
