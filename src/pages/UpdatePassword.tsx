@@ -25,7 +25,6 @@ export default function UpdatePassword() {
 
     useEffect(() => {
         let isMounted = true;
-        let timeoutId: ReturnType<typeof setTimeout>;
 
         const hash = window.location.hash.startsWith("#")
             ? window.location.hash.slice(1)
@@ -43,63 +42,39 @@ export default function UpdatePassword() {
             if (!isMounted) return;
 
             if (event === "PASSWORD_RECOVERY" || !!session) {
-                clearTimeout(timeoutId);
                 setReady(true);
             }
         });
 
         const validateRecoverySession = async () => {
-            // First check catches cases where session is already set
-            const { data: { session: initialSession } } = await supabase.auth.getSession();
-            if (!isMounted) return;
-            if (initialSession) {
-                setReady(true);
-                return;
-            }
-
-            if (!hasRecoveryParams) {
-                navigate("/auth");
-                return;
-            }
-
-            // Recovery redirects can race with client initialization; poll briefly.
+            // Session establishment can lag behind routing in hosted environments.
             for (let attempt = 0; attempt < 10; attempt++) {
-                await new Promise((resolve) => window.setTimeout(resolve, 500));
-                if (!isMounted) return;
-
                 const { data: { session } } = await supabase.auth.getSession();
                 if (!isMounted) return;
 
                 if (session) {
-                    clearTimeout(timeoutId);
                     setReady(true);
                     return;
                 }
+
+                await new Promise((resolve) => window.setTimeout(resolve, 500));
+                if (!isMounted) return;
             }
 
-            toast({
-                title: "Invalid reset link",
-                description: "This reset link is expired or invalid. Please request a new one.",
-                variant: "destructive",
-            });
+            if (hasRecoveryParams) {
+                toast({
+                    title: "Invalid reset link",
+                    description: "This reset link is expired or invalid. Please request a new one.",
+                    variant: "destructive",
+                });
+            }
             navigate("/auth");
         };
-
-        timeoutId = setTimeout(() => {
-            if (!isMounted) return;
-            toast({
-                title: "Invalid reset link",
-                description: "This reset link is expired or invalid. Please request a new one.",
-                variant: "destructive",
-            });
-            navigate("/auth");
-        }, 8000);
 
         validateRecoverySession();
 
         return () => {
             isMounted = false;
-            clearTimeout(timeoutId);
             subscription.unsubscribe();
         };
     }, [navigate, toast]);
