@@ -40,6 +40,10 @@ export default function Auth() {
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "PASSWORD_RECOVERY") {
+        navigate("/update-password");
+        return;
+      }
       if (session?.user) {
         navigate("/");
       }
@@ -94,6 +98,7 @@ export default function Auth() {
     if (!validateForm()) return;
 
     setLoading(true);
+    const appOrigin = window.location.origin;
 
     try {
       if (view === "login") {
@@ -104,7 +109,7 @@ export default function Auth() {
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: "https://semesterdeadlines.lovable.app" },
+          options: { emailRedirectTo: appOrigin },
         });
         if (error) throw error;
         toast({
@@ -113,7 +118,7 @@ export default function Auth() {
         });
       } else if (view === "recovery") {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: "https://semesterdeadlines.lovable.app/update-password",
+          redirectTo: `${appOrigin}/update-password`,
         });
         if (error) throw error;
         toast({

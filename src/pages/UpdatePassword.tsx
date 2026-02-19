@@ -19,16 +19,55 @@ const strongPasswordSchema = z.string()
 export default function UpdatePassword() {
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
+    const [ready, setReady] = useState(false);
     const navigate = useNavigate();
     const { toast } = useToast();
 
     useEffect(() => {
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            if (!session) {
-                navigate("/auth");
+        let isMounted = true;
+        let timeoutId: ReturnType<typeof setTimeout>;
+
+        const hasRecoveryParams =
+            window.location.hash.includes("type=recovery") ||
+            window.location.hash.includes("access_token=") ||
+            new URLSearchParams(window.location.search).has("code");
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+            if (!isMounted) return;
+
+            if (event === "PASSWORD_RECOVERY" || (event === "SIGNED_IN" && session)) {
+                clearTimeout(timeoutId);
+                setReady(true);
             }
         });
-    }, [navigate]);
+
+        if (hasRecoveryParams) {
+            timeoutId = setTimeout(() => {
+                if (!isMounted) return;
+                toast({
+                    title: "Invalid reset link",
+                    description: "This reset link is expired or invalid. Please request a new one.",
+                    variant: "destructive",
+                });
+                navigate("/auth");
+            }, 5000);
+        } else {
+            supabase.auth.getSession().then(({ data: { session } }) => {
+                if (!isMounted) return;
+                if (session) {
+                    setReady(true);
+                } else {
+                    navigate("/auth");
+                }
+            });
+        }
+
+        return () => {
+            isMounted = false;
+            clearTimeout(timeoutId);
+            subscription.unsubscribe();
+        };
+    }, [navigate, toast]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -63,6 +102,14 @@ export default function UpdatePassword() {
             setLoading(false);
         }
     };
+
+    if (!ready) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-background px-4">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-background px-4">
