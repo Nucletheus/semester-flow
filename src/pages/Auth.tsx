@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -20,7 +21,9 @@ const loginSchema = z.object({
 
 const signupSchema = loginSchema.extend({ password: strongPasswordSchema });
 
-type AuthView = "login" | "signup" | "forgot";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+
+type AuthView = "login" | "signup" | "forgot" | "verify";
 
 export default function Auth() {
   const showDebugPanel = import.meta.env.DEV || import.meta.env.VITE_AUTH_DEBUG === "true";
@@ -28,6 +31,7 @@ export default function Auth() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string; confirmPassword?: string }>({});
   const [formError, setFormError] = useState<string | null>(null);
@@ -87,6 +91,16 @@ export default function Auth() {
       if (!emailValidation.success) {
         const message = "Please enter a valid email address";
         setErrors({ email: message });
+        showValidationToast(message);
+        return false;
+      }
+      return true;
+    }
+
+    if (view === "verify") {
+      if (otp.length !== 6) {
+        const message = "Please enter the 6-digit verification code";
+        setFormError(message);
         showValidationToast(message);
         return false;
       }
@@ -162,19 +176,32 @@ export default function Auth() {
         });
       } else if (view === "forgot") {
         const recoveryEmail = email.trim().toLowerCase();
-        const { error } = await supabase.auth.resetPasswordForEmail(recoveryEmail, {
-          redirectTo: `${appOrigin}/update-password`,
+        const { error } = await supabase.auth.signInWithOtp({
+          email: recoveryEmail,
+          options: { shouldCreateUser: false },
         });
         if (error) throw error;
         setFormError(null);
-        setFormSuccess(`Reset email sent to ${recoveryEmail} if an account exists.`);
+        setFormSuccess(`Reset code sent to ${recoveryEmail} if an account exists.`);
         toast({
-          title: "Reset link sent",
-          description: `If an account exists for ${recoveryEmail}, a password reset link has been sent.`,
+          title: "Reset code sent",
+          description: `Enter the code sent to ${recoveryEmail}.`,
         });
-        setView("login");
-        setPassword("");
-        setConfirmPassword("");
+        setView("verify");
+      } else if (view === "verify") {
+        const { error } = await supabase.auth.verifyOtp({
+          email: email.trim().toLowerCase(),
+          token: otp,
+          type: "email",
+        });
+        if (error) throw error;
+        setFormError(null);
+        setFormSuccess("Verified successfully. Redirecting to reset password...");
+        toast({
+          title: "Code verified",
+          description: "Please set your new password.",
+        });
+        navigate("/update-password");
       }
     } catch (error: unknown) {
       const errorCode = typeof (error as { code?: unknown })?.code === "string"
@@ -215,6 +242,7 @@ export default function Auth() {
       case "login": return "Welcome back";
       case "signup": return "Create your account";
       case "forgot": return "Reset password";
+      case "verify": return "Check your email";
     }
   };
 
@@ -222,7 +250,8 @@ export default function Auth() {
     switch (view) {
       case "login": return "Sign in to track your academic workload";
       case "signup": return "Start organizing your semester today";
-      case "forgot": return "Enter your email to receive a reset link";
+      case "forgot": return "Enter your email to receive a reset code";
+      case "verify": return "Enter the 6-digit code sent to your email";
     }
   };
 
@@ -261,22 +290,41 @@ export default function Auth() {
                 {formSuccess}
               </div>
             )}
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="you@university.edu"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className={errors.email ? "border-destructive" : ""}
-              />
-              {errors.email && (
-                <p className="text-sm text-destructive">{errors.email}</p>
-              )}
-            </div>
+            {view !== "verify" && (
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="you@university.edu"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className={errors.email ? "border-destructive" : ""}
+                  disabled={view === "verify"}
+                />
+                {errors.email && (
+                  <p className="text-sm text-destructive">{errors.email}</p>
+                )}
+              </div>
+            )}
 
-            {view !== "forgot" && (
+            {view === "verify" && (
+              <div className="space-y-2 flex flex-col items-center">
+                <Label htmlFor="otp">Verification Code</Label>
+                <InputOTP maxLength={6} value={otp} onChange={(value) => setOtp(value)}>
+                  <InputOTPGroup>
+                    <InputOTPSlot index={0} />
+                    <InputOTPSlot index={1} />
+                    <InputOTPSlot index={2} />
+                    <InputOTPSlot index={3} />
+                    <InputOTPSlot index={4} />
+                    <InputOTPSlot index={5} />
+                  </InputOTPGroup>
+                </InputOTP>
+              </div>
+            )}
+
+            {view !== "forgot" && view !== "verify" && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password">Password</Label>
@@ -323,7 +371,7 @@ export default function Auth() {
 
             <Button type="submit" className="w-full" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {view === "login" ? "Sign in" : view === "signup" ? "Create account" : "Send reset link"}
+              {view === "login" ? "Sign in" : view === "signup" ? "Create account" : view === "forgot" ? "Send reset code" : "Verify code"}
             </Button>
           </form>
 
