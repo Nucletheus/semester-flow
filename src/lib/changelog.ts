@@ -1,7 +1,7 @@
 // Changelog data for What's New popup
 // Update CURRENT_VERSION and add new entries to CHANGELOG when deploying updates
 
-export const CURRENT_VERSION = "1.3.0";
+export const CURRENT_VERSION = "1.4.0";
 
 export interface ChangelogEntry {
     version: string;
@@ -11,6 +11,16 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: "1.4.0",
+        date: "2026-02-19",
+        title: "Getting Started Guide",
+        highlights: [
+            "Added a new Getting Started page in the sidebar menu",
+            "Included a step-by-step guide for timelines, deadlines, statuses, dashboard usage, and account security",
+            "Added quick links from the guide to Dashboard and Deadlines",
+        ],
+    },
     {
         version: "1.3.0",
         date: "2026-02-19",

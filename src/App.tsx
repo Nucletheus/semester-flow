@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Deadlines from "./pages/Deadlines";
+import GettingStarted from "./pages/GettingStarted";
 import NotFound from "./pages/NotFound";
 import UpdatePassword from "./pages/UpdatePassword";
 import { ThemeProvider } from "./components/ThemeProvider";
@@ -43,6 +44,7 @@ const App = () => (
               <Route element={<MainLayout />}>
                 <Route path="/" element={<Index />} />
                 <Route path="/deadlines" element={<Deadlines />} />
+                <Route path="/getting-started" element={<GettingStarted />} />
               </Route>
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />

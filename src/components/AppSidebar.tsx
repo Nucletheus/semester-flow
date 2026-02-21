@@ -11,6 +11,7 @@ import {
     Palette,
     Check,
     LockKeyhole,
+    CircleHelp,
 } from "lucide-react"
 import { useLocation, Link, useNavigate } from "react-router-dom"
 import { useAuth } from "@/hooks/useAuth"
@@ -98,6 +99,11 @@ export function AppSidebar() {
             title: "Deadlines",
             url: "/deadlines",
             icon: ListTodo,
+        },
+        {
+            title: "Getting Started",
+            url: "/getting-started",
+            icon: CircleHelp,
         },
     ], [])
 
