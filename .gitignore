@@ -34,3 +34,6 @@ metrics.jsonl
 
 # Vite temp config files
 vite.config.ts.timestamp-*.mjs
+
+# Locally pasted artifacts (screenshots, dumps)
+pasted/
