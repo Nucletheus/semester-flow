@@ -22,3 +22,15 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Environment files (never commit real secrets — see .env.example)
+.env
+.env.*
+!.env.example
+
+# Local tooling / session artifacts
+session.json
+metrics.jsonl
+
+# Vite temp config files
+vite.config.ts.timestamp-*.mjs
