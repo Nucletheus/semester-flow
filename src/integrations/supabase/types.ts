@@ -19,10 +19,12 @@ export type Database = {
           assignment_name: string
           class_name: string
           color: string
+          completed: boolean
           created_at: string
           due_date: string
           id: string
           semester_id: string
+          status: string | null
           type: string
           updated_at: string
           user_id: string
@@ -31,10 +33,12 @@ export type Database = {
           assignment_name: string
           class_name: string
           color?: string
+          completed?: boolean
           created_at?: string
           due_date: string
           id?: string
           semester_id: string
+          status?: string | null
           type: string
           updated_at?: string
           user_id: string
@@ -43,10 +47,12 @@ export type Database = {
           assignment_name?: string
           class_name?: string
           color?: string
+          completed?: boolean
           created_at?: string
           due_date?: string
           id?: string
           semester_id?: string
+          status?: string | null
           type?: string
           updated_at?: string
           user_id?: string
